@@ -1,5 +1,6 @@
 import { pool } from "@/lib/db";
 import { AGENTE_POR_DEFECTO, nombreAgente } from "@/lib/agentes";
+import { sqlAgenteNormalizado } from "@/lib/sql-agentes";
 import type {
   ConversacionesMetric,
   ChatsPorAgenteMetric,
@@ -47,12 +48,7 @@ export async function getConversaciones({ from, to }: Rango): Promise<Conversaci
 
 export async function getChatsPorAgente({ from, to }: Rango): Promise<ChatsPorAgenteMetric> {
   const { rows } = await pool.query<{ agente_id: string; chats: number }>(
-    `select case
-              when trim(coalesce(agente_asignado, '')) = ''
-                or lower(trim(agente_asignado)) in ('undefined', 'null')
-                then $3
-              else agente_asignado
-            end agente_id,
+    `select ${sqlAgenteNormalizado("agente_asignado", "$3")} agente_id,
             count(*)::int chats
      from ghl_conversaciones where fecha between $1 and $2
      group by 1 order by 2 desc`,

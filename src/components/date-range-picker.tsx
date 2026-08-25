@@ -29,6 +29,14 @@ function formatLabel(range: DateRange): string {
   return `${format(from, "d MMM yyyy", { locale: es })} – ${format(to, "d MMM yyyy", { locale: es })}`;
 }
 
+const CALENDAR_START_MONTH = new Date(2020, 0, 1);
+
+function formatDraftLabel(range: DayPickerRange | undefined): string {
+  if (!range?.from) return "Selecciona una fecha";
+  if (!range.to) return format(range.from, "d MMM yyyy", { locale: es });
+  return `${format(range.from, "d MMM yyyy", { locale: es })} – ${format(range.to, "d MMM yyyy", { locale: es })}`;
+}
+
 export function DateRangePicker({
   value,
   onChange,
@@ -41,6 +49,7 @@ export function DateRangePicker({
     from: parseISODateLocal(value.from),
     to: parseISODateLocal(value.to),
   });
+  const hoy = new Date();
 
   const activePreset: PresetId | null = presetPorRango(value);
 
@@ -53,12 +62,16 @@ export function DateRangePicker({
     setOpen(false);
   }
 
-  function aplicarDraft(range: DayPickerRange | undefined) {
-    setDraft(range);
-    if (range?.from && range?.to) {
-      onChange({ from: formatISODateLocal(range.from), to: formatISODateLocal(range.to) });
-      setOpen(false);
-    }
+  function confirmar() {
+    if (!draft?.from) return;
+    const to = draft.to ?? draft.from;
+    onChange({ from: formatISODateLocal(draft.from), to: formatISODateLocal(to) });
+    setOpen(false);
+  }
+
+  function cancelar() {
+    setDraft({ from: parseISODateLocal(value.from), to: parseISODateLocal(value.to) });
+    setOpen(false);
   }
 
   return (
@@ -100,14 +113,34 @@ export function DateRangePicker({
             ))}
           </div>
           <Separator orientation="vertical" className="hidden sm:block" />
-          <Calendar
-            mode="range"
-            numberOfMonths={2}
-            locale={es}
-            selected={draft}
-            onSelect={aplicarDraft}
-            defaultMonth={draft?.from}
-          />
+          <div className="flex flex-col">
+            <div className="flex items-center justify-between gap-4 border-b border-border px-4 py-2.5">
+              <span className="text-sm font-medium text-foreground">
+                {formatDraftLabel(draft)}
+              </span>
+            </div>
+            <Calendar
+              mode="range"
+              numberOfMonths={2}
+              locale={es}
+              selected={draft}
+              onSelect={setDraft}
+              defaultMonth={draft?.from}
+              captionLayout="dropdown"
+              startMonth={CALENDAR_START_MONTH}
+              endMonth={hoy}
+              disabled={{ after: hoy }}
+            />
+            <Separator />
+            <div className="flex items-center justify-end gap-2 px-4 py-3">
+              <Button variant="ghost" size="sm" onClick={cancelar}>
+                Cancelar
+              </Button>
+              <Button size="sm" disabled={!draft?.from} onClick={confirmar}>
+                Aplicar
+              </Button>
+            </div>
+          </div>
         </div>
       </PopoverContent>
     </Popover>

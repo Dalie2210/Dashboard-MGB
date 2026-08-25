@@ -38,3 +38,19 @@ select 'ghl_csat_pendiente', min(solicitado_at::date), max(solicitado_at::date) 
 
 -- 7. Puntajes distintos en ghl_csat (debe ser 1..5)
 select score, count(*) from ghl_csat group by 1 order by 1;
+
+-- 8. ventas_camila: rango de created_at (verificar el supuesto de que ya
+--    viene en hora Colombia, no UTC)
+select min(created_at) desde, max(created_at) hasta from ventas_camila;
+
+-- 9. ventas_camila: nulos en value y buyer_email
+select
+  count(*) filter (where value is null) sin_value,
+  count(*) filter (where nullif(trim(buyer_email), '') is null) sin_buyer_email,
+  count(*) total
+from ventas_camila;
+
+-- 10. ventas_camila: distribución por hora (para contrastar con el supuesto
+--     de hora Colombia del punto 8)
+select extract(hour from created_at) hora, count(*)
+from ventas_camila group by 1 order by 1;
