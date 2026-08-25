@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx shadcn@latest add tabs card calendar popover button select skeleton badge tooltip separator chart -y)"
+    ]
+  }
+}
