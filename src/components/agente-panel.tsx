@@ -175,22 +175,27 @@ export function AgentePanel({
             {data?.tiempoResolucion ? <TiempoCard data={data.tiempoResolucion} color={ACCENT_SECONDARY} /> : null}
           </BentoCard>
 
-          <BentoCard
-            span={4}
-            title="Motivos de escalamiento"
-            loading={isInitialLoading}
-            updating={isUpdating}
-            empty={data != null && data.motivosEscalamiento != null && data.motivosEscalamiento.length === 0}
-          >
-            {data?.motivosEscalamiento ? <MotivosEscalamientoCard data={data.motivosEscalamiento} /> : null}
-          </BentoCard>
-
           <BentoCard span={6} title="Casos resueltos vs. abiertos" loading={isInitialLoading} updating={isUpdating} empty={atendidasVacio}>
             {data ? <ResueltosAbiertosCard data={data.atendidas} /> : null}
           </BentoCard>
 
           <BentoCard span={6} title="Carga por día / hora" loading={isInitialLoading} updating={isUpdating} empty={atendidasVacio}>
             {data?.cargaDiaHora ? <CargaDiaHoraCard data={data.cargaDiaHora} /> : null}
+          </BentoCard>
+
+          <BentoCard
+            span={12}
+            title="Motivos de escalamiento"
+            hint={
+              data?.motivosEscalamiento && data.motivosEscalamiento.length > 8
+                ? "Se muestran los 8 motivos más frecuentes; el resto se agrupa en \"Otros\""
+                : undefined
+            }
+            loading={isInitialLoading}
+            updating={isUpdating}
+            empty={data != null && data.motivosEscalamiento != null && data.motivosEscalamiento.length === 0}
+          >
+            {data?.motivosEscalamiento ? <MotivosEscalamientoCard data={data.motivosEscalamiento} range={range} /> : null}
           </BentoCard>
         </>
       ) : null}

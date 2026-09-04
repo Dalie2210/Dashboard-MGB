@@ -28,6 +28,8 @@ export type EscalamientoMetric = {
 
 export type MotivoItem = { motivo: string; conteo: number };
 
+export type MotivoDetalleItem = { fecha: string; motivo: string; contactId: string };
+
 /** Tiempo de primera respuesta (Camila/Sami). `sinSesion` = filas del rango sin `sesion_id`, excluidas del join. */
 export type TiempoRespuestaMetric = TiempoMetric & { sinSesion: number };
 

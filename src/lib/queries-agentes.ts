@@ -5,6 +5,7 @@ import type { ConversacionesMetric, SerieDiaria } from "@/types/metrics";
 import type {
   CargaItem,
   CargaMetric,
+  MotivoDetalleItem,
   MotivoItem,
   TiempoRespuestaMetric,
   TiempoTrasRecibirMetric,
@@ -234,6 +235,20 @@ export async function getMotivosEscalamiento({ from, to }: Rango): Promise<Motiv
     [from, to, MELISSA_ID]
   );
   return rows;
+}
+
+export async function getMotivosEscalamientoDetalle({ from, to }: Rango, motivos: string[]): Promise<MotivoDetalleItem[]> {
+  if (motivos.length === 0) return [];
+
+  const { rows } = await pool.query<{ fecha: string; motivo: string; contact_id: string }>(
+    `select fecha::text fecha, motivo, contact_id
+     from ghl_escalamientos
+     where fecha between $1 and $2 and agente_destino = $3 and motivo = any($4::text[])
+     order by fecha desc, created_at desc`,
+    [from, to, MELISSA_ID, motivos]
+  );
+
+  return rows.map((r) => ({ fecha: r.fecha, motivo: r.motivo, contactId: r.contact_id }));
 }
 
 export async function getVolumenRecibidoMelissa(
