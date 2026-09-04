@@ -7,6 +7,9 @@ import type {
   CargaMetric,
   MotivoDetalleItem,
   MotivoItem,
+  ObjecionCanal,
+  ObjecionDetalleItem,
+  ObjecionItem,
   TiempoRespuestaMetric,
   TiempoTrasRecibirMetric,
   VentasMetric,
@@ -249,6 +252,43 @@ export async function getMotivosEscalamientoDetalle({ from, to }: Rango, motivos
   );
 
   return rows.map((r) => ({ fecha: r.fecha, motivo: r.motivo, contactId: r.contact_id }));
+}
+
+export async function getObjeciones({ from, to }: Rango): Promise<ObjecionItem[]> {
+  const { rows } = await pool.query<{ categoria: string; conteo: number }>(
+    `select categoria, count(*)::int conteo
+     from objeciones
+     where fecha::date between $1 and $2
+     group by categoria order by conteo desc`,
+    [from, to]
+  );
+  return rows;
+}
+
+export async function getObjecionesDetalle({ from, to }: Rango, categorias: string[]): Promise<ObjecionDetalleItem[]> {
+  if (categorias.length === 0) return [];
+
+  const { rows } = await pool.query<{
+    fecha: string;
+    categoria: string;
+    detalle: string | null;
+    contact_id: string;
+    canal: ObjecionCanal;
+  }>(
+    `select fecha::date::text fecha, categoria, detalle, contact_id, canal
+     from objeciones
+     where fecha::date between $1 and $2 and categoria = any($3::text[])
+     order by fecha desc`,
+    [from, to, categorias]
+  );
+
+  return rows.map((r) => ({
+    fecha: r.fecha,
+    categoria: r.categoria,
+    detalle: r.detalle,
+    contactId: r.contact_id,
+    canal: r.canal,
+  }));
 }
 
 export async function getVolumenRecibidoMelissa(

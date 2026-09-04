@@ -6,6 +6,7 @@ import {
   getCargaDiaHoraMelissa,
   getEscaladasAMelissa,
   getMotivosEscalamiento,
+  getObjeciones,
   getTiempoRespuestaAgente,
   getTiempoTrasRecibirMelissa,
   getVentasCamila,
@@ -51,9 +52,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ agen
     let escaladoAMelissa: AgenteMetricsResponse["escaladoAMelissa"] = null;
     let resueltoSinEscalar: AgenteMetricsResponse["resueltoSinEscalar"] = null;
     let motivosEscalamiento: AgenteMetricsResponse["motivosEscalamiento"] = null;
+    let objeciones: AgenteMetricsResponse["objeciones"] = null;
 
     if (agenteId === CAMILA_ID) {
-      ventas = await getVentasCamila(rango);
+      [ventas, objeciones] = await Promise.all([getVentasCamila(rango), getObjeciones(rango)]);
       // Compradores únicos, no transacciones: evita que una persona con varias
       // compras infle el porcentaje por encima de 100%.
       porcentajeCierre = atendidas.total > 0 ? (ventas.compradores / atendidas.total) * 100 : null;
@@ -91,6 +93,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ agen
       escaladoAMelissa,
       resueltoSinEscalar,
       motivosEscalamiento,
+      objeciones,
     };
 
     return NextResponse.json(body);

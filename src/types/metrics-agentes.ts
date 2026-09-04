@@ -30,6 +30,18 @@ export type MotivoItem = { motivo: string; conteo: number };
 
 export type MotivoDetalleItem = { fecha: string; motivo: string; contactId: string };
 
+export type ObjecionCanal = "ghl" | "manychat";
+
+export type ObjecionItem = { categoria: string; conteo: number };
+
+export type ObjecionDetalleItem = {
+  fecha: string;
+  categoria: string;
+  detalle: string | null;
+  contactId: string;
+  canal: ObjecionCanal;
+};
+
 /** Tiempo de primera respuesta (Camila/Sami). `sinSesion` = filas del rango sin `sesion_id`, excluidas del join. */
 export type TiempoRespuestaMetric = TiempoMetric & { sinSesion: number };
 
@@ -49,4 +61,5 @@ export type AgenteMetricsResponse = {
   escaladoAMelissa: EscalamientoMetric | null;
   resueltoSinEscalar: EscalamientoMetric | null;
   motivosEscalamiento: MotivoItem[] | null;
+  objeciones: ObjecionItem[] | null;
 };

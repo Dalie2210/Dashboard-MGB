@@ -9,6 +9,7 @@ import { VentasCamilaCard } from "@/components/cards/ventas-camila-card";
 import { CargaDiaHoraCard } from "@/components/cards/carga-dia-hora-card";
 import { ResueltosAbiertosCard } from "@/components/cards/resueltos-abiertos-card";
 import { MotivosEscalamientoCard } from "@/components/cards/motivos-escalamiento-card";
+import { ObjecionesCard } from "@/components/cards/objeciones-card";
 import { ACCENT_PRIMARY, ACCENT_SECONDARY } from "@/lib/chart-colors";
 import { formatNumero, formatPorcentaje, formatUsd } from "@/lib/format";
 import { CAMILA_ID, MELISSA_ID } from "@/lib/agentes";
@@ -114,6 +115,16 @@ export function AgentePanel({
 
           <BentoCard span={4} title="Compradores únicos" loading={isInitialLoading} updating={isUpdating} empty={atendidasVacio}>
             {data?.ventas ? <KpiCard valor={formatNumero(data.ventas.compradores)} /> : null}
+          </BentoCard>
+
+          <BentoCard
+            span={12}
+            title="Objeciones identificadas"
+            loading={isInitialLoading}
+            updating={isUpdating}
+            empty={data != null && data.objeciones != null && data.objeciones.length === 0}
+          >
+            {data?.objeciones ? <ObjecionesCard data={data.objeciones} range={range} /> : null}
           </BentoCard>
         </>
       ) : null}
