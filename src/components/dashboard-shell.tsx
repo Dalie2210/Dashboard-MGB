@@ -13,6 +13,7 @@ import { TendenciaConversacionesCard } from "@/components/cards/tendencia-conver
 import { ChatsPorAgenteCard } from "@/components/cards/chats-por-agente-card";
 import { TiempoCard } from "@/components/cards/tiempo-card";
 import { CsatDistribucionCard } from "@/components/cards/csat-distribucion-card";
+import { CsatDetalleTable } from "@/components/cards/csat-detalle-table";
 import { AgentePanel } from "@/components/agente-panel";
 import { ACCENT_PRIMARY, ACCENT_SECONDARY } from "@/lib/chart-colors";
 import { esRangoValido, rangoPorDefecto, type DateRange } from "@/lib/date-ranges";
@@ -169,6 +170,10 @@ export function DashboardShell() {
               empty={data != null && data.csat.respuestas === 0}
             >
               {data ? <CsatDistribucionCard data={data.csat} /> : null}
+            </BentoCard>
+
+            <BentoCard span={12} title="Detalle de calificaciones" loading={isInitialLoading} updating={isUpdating}>
+              {data ? <CsatDetalleTable range={range} /> : null}
             </BentoCard>
           </BentoGrid>
         </TabsContent>

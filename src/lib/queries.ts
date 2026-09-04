@@ -7,6 +7,7 @@ import type {
   ResueltoIaMetric,
   TiempoMetric,
   CsatMetric,
+  CsatDetalleItem,
   SerieDiaria,
 } from "@/types/metrics";
 
@@ -172,4 +173,18 @@ export async function getCsat({ from, to }: Rango): Promise<CsatMetric> {
     pendientesEnRango,
     tasaRespuesta: totalSolicitudes > 0 ? (t.respuestas / totalSolicitudes) * 100 : null,
   };
+}
+
+export async function getCsatDetalle({ from, to }: Rango, scores: number[]): Promise<CsatDetalleItem[]> {
+  if (scores.length === 0) return [];
+
+  const { rows } = await pool.query<{ fecha: string; contact_id: string; score: number }>(
+    `select fecha::text fecha, contact_id, score
+     from ghl_csat
+     where fecha between $1 and $2 and score = any($3::int[])
+     order by fecha desc, created_at desc`,
+    [from, to, scores]
+  );
+
+  return rows.map((r) => ({ fecha: r.fecha, contactId: r.contact_id, score: r.score }));
 }

@@ -48,6 +48,8 @@ export type CsatMetric = {
   tasaRespuesta: number | null;
 };
 
+export type CsatDetalleItem = { fecha: string; contactId: string; score: number };
+
 export type MetricsResponse = {
   rango: { from: string; to: string };
   conversaciones: ConversacionesMetric;
