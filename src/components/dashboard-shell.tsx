@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DateRangePicker } from "@/components/date-range-picker";
+import { SideMenu } from "@/components/side-menu";
 import { BentoGrid, BentoCard } from "@/components/bento-grid";
 import { TotalConversacionesCard } from "@/components/cards/total-conversaciones-card";
 import { ResueltoIaCard } from "@/components/cards/resuelto-ia-card";
@@ -73,9 +74,12 @@ export function DashboardShell() {
   return (
     <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 px-4 py-8 sm:px-6 lg:px-10">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-bold text-foreground">Dashboard SAC</h1>
-          <p className="text-sm text-muted-foreground">Be Welly · Soporte y Atención al Cliente</p>
+        <div className="flex items-center gap-3">
+          <SideMenu />
+          <div>
+            <h1 className="font-heading text-2xl font-bold text-foreground">Dashboard SAC</h1>
+            <p className="text-sm text-muted-foreground">Be Welly · Soporte y Atención al Cliente</p>
+          </div>
         </div>
         <DateRangePicker value={range} onChange={setRange} />
       </header>
