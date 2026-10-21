@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const rango = esRangoValido(req.nextUrl.searchParams.get("from"), req.nextUrl.searchParams.get("to"));
   const motivos = req.nextUrl.searchParams.getAll("motivo");
+  const origen = req.nextUrl.searchParams.get("origen") ?? undefined;
 
   if (!rango || motivos.length === 0) {
     return NextResponse.json(
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const items = await getMotivosEscalamientoDetalle(rango, motivos);
+    const items = await getMotivosEscalamientoDetalle(rango, motivos, origen);
     return NextResponse.json({ items });
   } catch (error) {
     console.error("[/api/metrics/motivos-escalamiento-detalle]", error);

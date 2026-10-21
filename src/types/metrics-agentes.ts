@@ -1,4 +1,4 @@
-import type { ConversacionesMetric, TiempoMetric } from "@/types/metrics";
+import type { ConversacionesMetric, CsatMetric, TiempoMetric } from "@/types/metrics";
 
 export type VentasMetric = {
   ingresos: number;
@@ -29,6 +29,19 @@ export type EscalamientoMetric = {
 export type MotivoItem = { motivo: string; conteo: number };
 
 export type MotivoDetalleItem = { fecha: string; motivo: string; contactId: string };
+
+/** Caso recibido por Melissa sin conversación cerrada posterior a la recepción. */
+export type CasoSinCerrarItem = {
+  contactId: string;
+  conversationId: string | null;
+  recibidoAt: string;
+  motivo: string | null;
+};
+
+/** Resoluciones IA agrupadas por el prefijo de tópico (T1..T5) del campo `resultado`. */
+export type TopicoItem = { topico: string; conteo: number };
+
+export type ResolucionDetalleItem = { fecha: string; resultado: string; contactId: string };
 
 export type ObjecionCanal = "ghl" | "manychat";
 
@@ -62,4 +75,37 @@ export type AgenteMetricsResponse = {
   resueltoSinEscalar: EscalamientoMetric | null;
   motivosEscalamiento: MotivoItem[] | null;
   objeciones: ObjecionItem[] | null;
+  tiempoResolucionAgente: TiempoMetric | null;
+  csat: CsatMetric | null;
+  resolucionesPorTopico: TopicoItem[] | null;
+};
+
+/** Listados de detalle por tarjeta del panel de agente (un único formato: fecha + una columna extra + link). */
+export const DETALLE_TIPOS = [
+  "atendidas",
+  "tiempo-respuesta",
+  "tiempo-resolucion",
+  "escaladas",
+  "asignaciones",
+  "csat",
+] as const;
+
+export type DetalleTipo = (typeof DETALLE_TIPOS)[number];
+
+export type DetalleEstado = "todas" | "abierta" | "cerrada";
+
+export type DetalleItem = {
+  fecha: string;
+  contactId: string;
+  conversationId: string | null;
+  celda: string;
+  /** Valor numérico crudo de `celda` (segundos, puntaje, conteo) para ordenar; null si es texto. */
+  valor: number | null;
+};
+
+export type DetalleResponse = {
+  columna: string;
+  items: DetalleItem[];
+  /** true si había más filas que el tope y se recortó la lista. */
+  truncado: boolean;
 };

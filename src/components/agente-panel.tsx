@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { BentoGrid, BentoCard } from "@/components/bento-grid";
 import { TotalConversacionesCard } from "@/components/cards/total-conversaciones-card";
@@ -10,11 +11,16 @@ import { CargaDiaHoraCard } from "@/components/cards/carga-dia-hora-card";
 import { ResueltosAbiertosCard } from "@/components/cards/resueltos-abiertos-card";
 import { MotivosEscalamientoCard } from "@/components/cards/motivos-escalamiento-card";
 import { ObjecionesCard } from "@/components/cards/objeciones-card";
+import { DetalleAgenteDialog, type DetalleSeleccion } from "@/components/cards/detalle-agente-dialog";
+import { CasosSinCerrarDialog } from "@/components/cards/casos-sin-cerrar-dialog";
+import { CsatGeneralCard } from "@/components/cards/csat-general-card";
+import { CsatDistribucionCard } from "@/components/cards/csat-distribucion-card";
+import { ResolucionesTopicoCard } from "@/components/cards/resoluciones-topico-card";
 import { ACCENT_PRIMARY, ACCENT_SECONDARY } from "@/lib/chart-colors";
 import { formatNumero, formatPorcentaje, formatUsd } from "@/lib/format";
-import { CAMILA_ID, MELISSA_ID } from "@/lib/agentes";
+import { AGENTES, CAMILA_ID, MELISSA_ID, SAMI_ID } from "@/lib/agentes";
 import type { DateRange } from "@/lib/date-ranges";
-import type { AgenteMetricsResponse } from "@/types/metrics-agentes";
+import type { AgenteMetricsResponse, DetalleTipo } from "@/types/metrics-agentes";
 
 async function fetchAgenteMetrics(agenteId: string, range: DateRange): Promise<AgenteMetricsResponse> {
   const params = new URLSearchParams({ from: range.from, to: range.to });
@@ -32,6 +38,10 @@ export function AgentePanel({
   range: DateRange;
   activo: boolean;
 }) {
+  const [casosSinCerrarAbierto, setCasosSinCerrarAbierto] = useState(false);
+  const [detalle, setDetalle] = useState<DetalleSeleccion | null>(null);
+  const abrirDetalle = (tipo: DetalleTipo, titulo: string) => () => setDetalle({ tipo, titulo });
+
   const query = useQuery({
     queryKey: ["metrics-agente", agenteId, range.from, range.to],
     queryFn: () => fetchAgenteMetrics(agenteId, range),
@@ -55,7 +65,21 @@ export function AgentePanel({
 
   return (
     <BentoGrid>
-      <BentoCard span={4} title="Cantidad atendida" loading={isInitialLoading} updating={isUpdating} empty={atendidasVacio}>
+      <DetalleAgenteDialog
+        agenteId={agenteId}
+        range={range}
+        seleccion={detalle}
+        onClose={() => setDetalle(null)}
+      />
+
+      <BentoCard
+        span={4}
+        title="Cantidad atendida"
+        loading={isInitialLoading}
+        updating={isUpdating}
+        empty={atendidasVacio}
+        onClick={abrirDetalle("atendidas", "Conversaciones atendidas")}
+      >
         {data ? <TotalConversacionesCard data={data.atendidas} /> : null}
       </BentoCard>
 
@@ -70,6 +94,7 @@ export function AgentePanel({
         loading={isInitialLoading}
         updating={isUpdating}
         empty={data != null && data.tiempoRespuesta.muestras === 0}
+        onClick={abrirDetalle("tiempo-respuesta", "Tiempo de primera respuesta · más lentas primero")}
       >
         {data ? <TiempoCard data={data.tiempoRespuesta} color={ACCENT_PRIMARY} /> : null}
       </BentoCard>
@@ -96,6 +121,7 @@ export function AgentePanel({
             loading={isInitialLoading}
             updating={isUpdating}
             empty={atendidasVacio}
+            onClick={abrirDetalle("escaladas", "Contactos escalados a Melissa")}
           >
             {data?.escaladoAMelissa ? (
               <KpiCard
@@ -123,6 +149,7 @@ export function AgentePanel({
             loading={isInitialLoading}
             updating={isUpdating}
             empty={data != null && data.objeciones != null && data.objeciones.length === 0}
+            expandible
           >
             {data?.objeciones ? <ObjecionesCard data={data.objeciones} range={range} /> : null}
           </BentoCard>
@@ -149,6 +176,7 @@ export function AgentePanel({
             loading={isInitialLoading}
             updating={isUpdating}
             empty={atendidasVacio}
+            onClick={abrirDetalle("escaladas", "Contactos escalados a Melissa")}
           >
             {data?.escaladoAMelissa ? (
               <KpiCard
@@ -160,9 +188,114 @@ export function AgentePanel({
         </>
       ) : null}
 
+      {agenteId === SAMI_ID ? (
+        <>
+          <BentoCard
+            span={4}
+            title="Tiempo de resolución"
+            loading={isInitialLoading}
+            updating={isUpdating}
+            empty={data != null && data.tiempoResolucionAgente != null && data.tiempoResolucionAgente.muestras === 0}
+            onClick={abrirDetalle("tiempo-resolucion", "Tiempo de resolución · más lentas primero")}
+          >
+            {data?.tiempoResolucionAgente ? <TiempoCard data={data.tiempoResolucionAgente} color={ACCENT_SECONDARY} /> : null}
+          </BentoCard>
+
+          <BentoCard
+            span={4}
+            title="Contactos asignados"
+            loading={isInitialLoading}
+            updating={isUpdating}
+            onClick={abrirDetalle("asignaciones", "Contactos asignados")}
+          >
+            {data?.volumenRecibido ? (
+              <KpiCard
+                valor={formatNumero(data.volumenRecibido.contactos)}
+                subtitulo={`${formatNumero(data.volumenRecibido.asignaciones)} asignaciones`}
+              />
+            ) : null}
+          </BentoCard>
+
+          <BentoCard
+            span={6}
+            title="Casos resueltos vs. abiertos"
+            loading={isInitialLoading}
+            updating={isUpdating}
+            empty={atendidasVacio}
+            onClick={abrirDetalle("atendidas", "Casos resueltos vs. abiertos")}
+          >
+            {data ? <ResueltosAbiertosCard data={data.atendidas} /> : null}
+          </BentoCard>
+
+          <BentoCard span={6} title="Carga por día / hora" loading={isInitialLoading} updating={isUpdating} empty={atendidasVacio}>
+            {data?.cargaDiaHora ? <CargaDiaHoraCard data={data.cargaDiaHora} /> : null}
+          </BentoCard>
+
+          <BentoCard
+            span={4}
+            title="CSAT de sus contactos"
+            hint="Contactos con conversación de Sami en el período"
+            loading={isInitialLoading}
+            updating={isUpdating}
+            empty={data != null && data.csat != null && data.csat.respuestas === 0}
+            onClick={abrirDetalle("csat", "Calificaciones CSAT de sus contactos")}
+          >
+            {data?.csat ? <CsatGeneralCard data={data.csat} /> : null}
+          </BentoCard>
+
+          <BentoCard
+            span={8}
+            title="Distribución de calificaciones"
+            loading={isInitialLoading}
+            updating={isUpdating}
+            empty={data != null && data.csat != null && data.csat.respuestas === 0}
+            onClick={abrirDetalle("csat", "Calificaciones CSAT de sus contactos")}
+          >
+            {data?.csat ? <CsatDistribucionCard data={data.csat} /> : null}
+          </BentoCard>
+
+          <BentoCard
+            span={12}
+            title="Resoluciones IA por tópico"
+            loading={isInitialLoading}
+            updating={isUpdating}
+            empty={data != null && data.resolucionesPorTopico != null && data.resolucionesPorTopico.length === 0}
+            expandible
+          >
+            {data?.resolucionesPorTopico ? (
+              <ResolucionesTopicoCard data={data.resolucionesPorTopico} range={range} agenteIa={AGENTES[SAMI_ID]} />
+            ) : null}
+          </BentoCard>
+
+          <BentoCard
+            span={12}
+            title="Motivos de escalamiento a Melissa"
+            hint={
+              data?.motivosEscalamiento && data.motivosEscalamiento.length > 8
+                ? "Se muestran los 8 motivos más frecuentes; el resto se agrupa en \"Otros\""
+                : undefined
+            }
+            loading={isInitialLoading}
+            updating={isUpdating}
+            empty={data != null && data.motivosEscalamiento != null && data.motivosEscalamiento.length === 0}
+            expandible
+          >
+            {data?.motivosEscalamiento ? (
+              <MotivosEscalamientoCard data={data.motivosEscalamiento} range={range} agenteOrigen={SAMI_ID} />
+            ) : null}
+          </BentoCard>
+        </>
+      ) : null}
+
       {agenteId === MELISSA_ID ? (
         <>
-          <BentoCard span={4} title="Volumen recibido (total)" loading={isInitialLoading} updating={isUpdating}>
+          <BentoCard
+            span={4}
+            title="Volumen recibido (total)"
+            loading={isInitialLoading}
+            updating={isUpdating}
+            onClick={abrirDetalle("asignaciones", "Contactos recibidos")}
+          >
             {data?.volumenRecibido ? (
               <KpiCard
                 valor={formatNumero(data.volumenRecibido.contactos)}
@@ -182,11 +315,35 @@ export function AgentePanel({
             loading={isInitialLoading}
             updating={isUpdating}
             empty={data != null && data.tiempoResolucion != null && data.tiempoResolucion.muestras === 0}
+            onClick={abrirDetalle("tiempo-resolucion", "Tiempo de resolución tras recibir el caso · más lentos primero")}
           >
             {data?.tiempoResolucion ? <TiempoCard data={data.tiempoResolucion} color={ACCENT_SECONDARY} /> : null}
           </BentoCard>
 
-          <BentoCard span={6} title="Casos resueltos vs. abiertos" loading={isInitialLoading} updating={isUpdating} empty={atendidasVacio}>
+          <BentoCard
+            span={4}
+            title="Casos sin cerrar"
+            loading={isInitialLoading}
+            updating={isUpdating}
+            onClick={data?.tiempoResolucion ? () => setCasosSinCerrarAbierto(true) : undefined}
+          >
+            {data?.tiempoResolucion ? (
+              <KpiCard
+                valor={formatNumero(data.tiempoResolucion.sinCerrar)}
+                subtitulo="recibidos sin cierre posterior · clic para ver el detalle"
+              />
+            ) : null}
+          </BentoCard>
+          <CasosSinCerrarDialog range={range} open={casosSinCerrarAbierto} onOpenChange={setCasosSinCerrarAbierto} />
+
+          <BentoCard
+            span={6}
+            title="Casos resueltos vs. abiertos"
+            loading={isInitialLoading}
+            updating={isUpdating}
+            empty={atendidasVacio}
+            onClick={abrirDetalle("atendidas", "Casos resueltos vs. abiertos")}
+          >
             {data ? <ResueltosAbiertosCard data={data.atendidas} /> : null}
           </BentoCard>
 
@@ -205,6 +362,7 @@ export function AgentePanel({
             loading={isInitialLoading}
             updating={isUpdating}
             empty={data != null && data.motivosEscalamiento != null && data.motivosEscalamiento.length === 0}
+            expandible
           >
             {data?.motivosEscalamiento ? <MotivosEscalamientoCard data={data.motivosEscalamiento} range={range} /> : null}
           </BentoCard>

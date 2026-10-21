@@ -5,28 +5,36 @@ import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DetalleTable, EnlaceConversacion, type Columna } from "@/components/cards/detalle-table";
 import { cn } from "@/lib/utils";
 import { CSAT_ORDINAL_STEPS } from "@/lib/chart-colors";
+import { formatFechaDia } from "@/lib/format";
+import { linkConversacionGhl } from "@/lib/ghl-links";
 import type { DateRange } from "@/lib/date-ranges";
 import type { CsatDetalleItem } from "@/types/metrics";
 
-const LOCATION_ID = "Za8gp9YSfx5AFbf4OOgb";
-
-function linkContacto(contactId: string): string {
-  return `https://app.fanel.ai/v2/location/${LOCATION_ID}/contacts/detail/${contactId}`;
-}
-
-function formatFecha(fecha: string): string {
-  const [y, m, d] = fecha.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("es-CO", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
-
 const SCORES = [1, 2, 3, 4, 5] as const;
 const SCORES_POR_DEFECTO = [1, 2, 3];
+
+const COLUMNAS: Columna<CsatDetalleItem>[] = [
+  { id: "fecha", header: "Fecha", valor: (f) => f.fecha, texto: (f) => formatFechaDia(f.fecha) },
+  {
+    id: "contacto",
+    header: "Contacto",
+    render: (f) => <EnlaceConversacion href={linkConversacionGhl(f.contactId)} />,
+  },
+  {
+    id: "score",
+    header: "Calificación",
+    valor: (f) => f.score,
+    texto: (f) => `${f.score} ★`,
+    render: (f) => (
+      <Badge variant="secondary" style={{ backgroundColor: CSAT_ORDINAL_STEPS[f.score - 1], color: "white" }}>
+        {f.score} ★
+      </Badge>
+    ),
+  },
+];
 
 async function fetchCsatDetalle(range: DateRange, scores: number[]): Promise<CsatDetalleItem[]> {
   const params = new URLSearchParams({ from: range.from, to: range.to, scores: scores.join(",") });
@@ -89,42 +97,12 @@ export function CsatDetalleTable({ range }: { range: DateRange }) {
       ) : items.length === 0 ? (
         <p className="py-6 text-sm text-muted-foreground">Sin calificaciones en este período</p>
       ) : (
-        <div className={cn("overflow-x-auto rounded-lg border border-border", isUpdating && "opacity-60")}>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/50 text-left text-xs text-muted-foreground">
-                <th className="px-3 py-2 font-medium">Fecha</th>
-                <th className="px-3 py-2 font-medium">Contacto</th>
-                <th className="px-3 py-2 font-medium">Calificación</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item, i) => (
-                <tr key={`${item.contactId}-${item.fecha}-${i}`} className="border-b border-border last:border-0">
-                  <td className="px-3 py-2 tabular-nums text-foreground">{formatFecha(item.fecha)}</td>
-                  <td className="px-3 py-2">
-                    <a
-                      href={linkContacto(item.contactId)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary underline-offset-4 hover:underline"
-                    >
-                      Ver detalle del contacto
-                    </a>
-                  </td>
-                  <td className="px-3 py-2">
-                    <Badge
-                      variant="secondary"
-                      style={{ backgroundColor: CSAT_ORDINAL_STEPS[item.score - 1], color: "white" }}
-                    >
-                      {item.score} ★
-                    </Badge>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DetalleTable
+          className={cn(isUpdating && "opacity-60")}
+          filas={items}
+          columnas={COLUMNAS}
+          ordenInicial={{ id: "fecha", dir: "desc" }}
+        />
       )}
     </div>
   );

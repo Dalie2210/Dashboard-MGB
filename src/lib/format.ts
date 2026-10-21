@@ -11,6 +11,12 @@ export function formatDuracion(segundos: number | null): string {
   return `${s}s`;
 }
 
+/** Fecha `YYYY-MM-DD` (sin hora) como dd/mm/aaaa, sin corrimiento por zona horaria. */
+export function formatFechaDia(fecha: string): string {
+  const [y, m, d] = fecha.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
 export function formatPorcentaje(valor: number | null, decimales = 0): string {
   if (valor == null || !Number.isFinite(valor)) return "—";
   return `${valor.toFixed(decimales)}%`;

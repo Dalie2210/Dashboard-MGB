@@ -3,8 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
-import { formatNumero } from "@/lib/format";
+import { DetalleTable, EnlaceConversacion, type Columna } from "@/components/cards/detalle-table";
+import { formatFechaDia, formatNumero } from "@/lib/format";
 import type { DateRange } from "@/lib/date-ranges";
 import type { ObjecionCanal, ObjecionDetalleItem } from "@/types/metrics-agentes";
 
@@ -17,14 +17,7 @@ function linkConversacion(contactId: string, canal: ObjecionCanal): string {
     : `https://app.manychat.com/${MANYCHAT_ACCOUNT_ID}/chat/${contactId}`;
 }
 
-function formatFecha(fecha: string): string {
-  const [y, m, d] = fecha.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("es-CO", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
+const ETIQUETA_CANAL: Record<ObjecionCanal, string> = { ghl: "GHL", manychat: "ManyChat" };
 
 async function fetchObjecionDetalle(range: DateRange, categoria: string): Promise<ObjecionDetalleItem[]> {
   const params = new URLSearchParams({ from: range.from, to: range.to, categoria });
@@ -52,8 +45,21 @@ export function ObjecionDetalleDialog({
   });
 
   const items = query.data ?? [];
-  const isLoading = query.isLoading;
-  const isUpdating = query.isFetching && !query.isLoading;
+
+  const columnas: Columna<ObjecionDetalleItem>[] = [
+    { id: "fecha", header: "Fecha", valor: (f) => f.fecha, texto: (f) => formatFechaDia(f.fecha) },
+    {
+      id: "objecion",
+      header: "Objeción",
+      valor: (f) => f.detalle ?? seleccion?.titulo ?? "",
+    },
+    { id: "canal", header: "Canal", valor: (f) => ETIQUETA_CANAL[f.canal], filtro: "opciones" },
+    {
+      id: "link",
+      header: "Link de la conversación",
+      render: (f) => <EnlaceConversacion href={linkConversacion(f.contactId, f.canal)} />,
+    },
+  ];
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onOpenChange(false)}>
@@ -61,11 +67,11 @@ export function ObjecionDetalleDialog({
         <DialogHeader>
           <DialogTitle>{seleccion?.titulo}</DialogTitle>
           <DialogDescription>
-            {isLoading ? "Cargando conversaciones…" : `${formatNumero(items.length)} conversación(es) con esta objeción`}
+            {query.isLoading ? "Cargando conversaciones…" : `${formatNumero(items.length)} conversación(es) con esta objeción`}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
-          {isLoading ? (
+          {query.isLoading ? (
             <div className="flex flex-col gap-2">
               <Skeleton className="h-8 w-full" />
               <Skeleton className="h-8 w-full" />
@@ -74,35 +80,7 @@ export function ObjecionDetalleDialog({
           ) : items.length === 0 ? (
             <p className="py-6 text-sm text-muted-foreground">Sin conversaciones en este período</p>
           ) : (
-            <div className={cn("overflow-x-auto rounded-lg border border-border", isUpdating && "opacity-60")}>
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-card">
-                  <tr className="border-b border-border bg-muted/50 text-left text-xs text-muted-foreground">
-                    <th className="px-3 py-2 font-medium">Fecha</th>
-                    <th className="px-3 py-2 font-medium">Objeción</th>
-                    <th className="px-3 py-2 font-medium">Link de la conversación</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item, i) => (
-                    <tr key={`${item.contactId}-${item.fecha}-${i}`} className="border-b border-border last:border-0">
-                      <td className="px-3 py-2 whitespace-nowrap tabular-nums text-foreground">{formatFecha(item.fecha)}</td>
-                      <td className="px-3 py-2 text-foreground">{item.detalle ?? seleccion?.titulo}</td>
-                      <td className="px-3 py-2 whitespace-nowrap">
-                        <a
-                          href={linkConversacion(item.contactId, item.canal)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary underline-offset-4 hover:underline"
-                        >
-                          Ver conversación
-                        </a>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <DetalleTable key={seleccion?.categoria} filas={items} columnas={columnas} />
           )}
         </DialogBody>
       </DialogContent>

@@ -27,7 +27,16 @@ function truncar(texto: string) {
 
 type Punto = { motivo: string; etiqueta: string; conteo: number; esOtros: boolean; motivosOriginales: string[] };
 
-export function MotivosEscalamientoCard({ data, range }: { data: MotivoItem[]; range: DateRange }) {
+export function MotivosEscalamientoCard({
+  data,
+  range,
+  agenteOrigen,
+}: {
+  data: MotivoItem[];
+  range: DateRange;
+  /** Restringe el detalle a escalamientos que vienen de este agente. */
+  agenteOrigen?: string;
+}) {
   const [seleccion, setSeleccion] = useState<{ titulo: string; motivos: string[] } | null>(null);
 
   const ordenado = [...data].sort((a, b) => b.conteo - a.conteo);
@@ -93,7 +102,12 @@ export function MotivosEscalamientoCard({ data, range }: { data: MotivoItem[]; r
         {LEYENDA_TOPICOS}
       </p>
 
-      <MotivoEscalamientoDetalleDialog range={range} seleccion={seleccion} onOpenChange={(open) => !open && setSeleccion(null)} />
+      <MotivoEscalamientoDetalleDialog
+        range={range}
+        agenteOrigen={agenteOrigen}
+        seleccion={seleccion}
+        onOpenChange={(open) => !open && setSeleccion(null)}
+      />
     </>
   );
 }

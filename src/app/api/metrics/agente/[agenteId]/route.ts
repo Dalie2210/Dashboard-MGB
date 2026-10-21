@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { esRangoValido } from "@/lib/date-ranges";
-import { AGENTES_CON_PANEL, CAMILA_ID, MELISSA_ID } from "@/lib/agentes";
+import { AGENTES, AGENTES_CON_PANEL, CAMILA_ID, MELISSA_ID, SAMI_ID } from "@/lib/agentes";
 import {
   getAtendidasAgente,
-  getCargaDiaHoraMelissa,
+  getCargaDiaHora,
+  getCsatAgente,
   getEscaladasAMelissa,
   getMotivosEscalamiento,
   getObjeciones,
+  getResolucionesPorTopico,
+  getTiempoResolucionAgente,
   getTiempoRespuestaAgente,
   getTiempoTrasRecibirMelissa,
   getVentasCamila,
-  getVolumenRecibidoMelissa,
+  getVolumenRecibido,
 } from "@/lib/queries-agentes";
 import type { AgenteMetricsResponse } from "@/types/metrics-agentes";
 
@@ -53,6 +56,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ agen
     let resueltoSinEscalar: AgenteMetricsResponse["resueltoSinEscalar"] = null;
     let motivosEscalamiento: AgenteMetricsResponse["motivosEscalamiento"] = null;
     let objeciones: AgenteMetricsResponse["objeciones"] = null;
+    let tiempoResolucionAgente: AgenteMetricsResponse["tiempoResolucionAgente"] = null;
+    let csat: AgenteMetricsResponse["csat"] = null;
+    let resolucionesPorTopico: AgenteMetricsResponse["resolucionesPorTopico"] = null;
 
     if (agenteId === CAMILA_ID) {
       [ventas, objeciones] = await Promise.all([getVentasCamila(rango), getObjeciones(rango)]);
@@ -74,10 +80,23 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ agen
     if (agenteId === MELISSA_ID) {
       [tiempoResolucion, cargaDiaHora, volumenRecibido, motivosEscalamiento] = await Promise.all([
         getTiempoTrasRecibirMelissa(rango, agenteId),
-        getCargaDiaHoraMelissa(rango, agenteId),
-        getVolumenRecibidoMelissa(rango, agenteId),
+        getCargaDiaHora(rango, agenteId),
+        getVolumenRecibido(rango, agenteId),
         getMotivosEscalamiento(rango),
       ]);
+    }
+
+    if (agenteId === SAMI_ID) {
+      [cargaDiaHora, volumenRecibido, tiempoResolucionAgente, csat, resolucionesPorTopico, motivosEscalamiento] =
+        await Promise.all([
+          getCargaDiaHora(rango, agenteId),
+          getVolumenRecibido(rango, agenteId),
+          getTiempoResolucionAgente(rango, agenteId),
+          getCsatAgente(rango, agenteId),
+          // ghl_resoluciones_ia guarda el nombre del agente IA, no su ID GHL.
+          getResolucionesPorTopico(rango, AGENTES[SAMI_ID]),
+          getMotivosEscalamiento(rango, agenteId),
+        ]);
     }
 
     const body: AgenteMetricsResponse = {
@@ -94,6 +113,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ agen
       resueltoSinEscalar,
       motivosEscalamiento,
       objeciones,
+      tiempoResolucionAgente,
+      csat,
+      resolucionesPorTopico,
     };
 
     return NextResponse.json(body);

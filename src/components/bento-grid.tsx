@@ -1,3 +1,4 @@
+import { Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,6 +28,8 @@ export function BentoCard({
   updating,
   empty,
   className,
+  onClick,
+  expandible,
   children,
 }: {
   span?: 4 | 5 | 6 | 7 | 8 | 12;
@@ -37,21 +40,48 @@ export function BentoCard({
   updating?: boolean;
   empty?: boolean;
   className?: string;
+  /** Hace la tarjeta entera clicable (p. ej. para abrir un detalle). */
+  onClick?: () => void;
+  /** Marca la tarjeta como expandible cuando el clic vive en su contenido (p. ej. barras de un gráfico). */
+  expandible?: boolean;
   children: React.ReactNode;
 }) {
+  const clicable = onClick != null && !loading && !empty;
+  const conDetalle = (clicable || expandible) && !loading && !empty;
+
   return (
     <Card
       className={cn(
-        "rounded-[20px] border border-border bg-card shadow-sm transition-opacity",
+        "relative rounded-[20px] border border-border bg-card shadow-sm transition-opacity",
         SPAN_CLASSES[span],
         updating && "opacity-60",
+        clicable && "cursor-pointer transition-colors hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-primary",
         className
       )}
+      {...(clicable
+        ? {
+            role: "button",
+            tabIndex: 0,
+            onClick,
+            onKeyDown: (e: React.KeyboardEvent) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            },
+          }
+        : {})}
     >
       <CardHeader>
         <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        {conDetalle ? (
+          <Maximize2
+            aria-label="Ver detalle"
+            className="absolute top-4 right-4 size-4 text-muted-foreground/60 transition-colors group-hover/card:text-primary"
+          />
+        ) : null}
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1">
         {loading ? (
           <div className="flex flex-col gap-2">
             <Skeleton className="h-8 w-2/3" />
