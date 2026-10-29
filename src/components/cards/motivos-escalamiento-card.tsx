@@ -1,31 +1,77 @@
 "use client";
 
 import { useState } from "react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from "recharts";
+import { PieChart, Pie, Cell } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { MotivoEscalamientoDetalleDialog } from "@/components/cards/motivo-escalamiento-detalle-dialog";
-import { ACCENT_PRIMARY, CATEGORICAL_OTROS_COLOR } from "@/lib/chart-colors";
+import { CATEGORICAL_OTROS_COLOR, CATEGORICAL_THEME } from "@/lib/chart-colors";
+import { formatNumero, formatPorcentaje } from "@/lib/format";
+import { NOMBRES_TOPICO, etiquetaTopico } from "@/lib/topicos";
 import type { DateRange } from "@/lib/date-ranges";
 import type { MotivoItem } from "@/types/metrics-agentes";
 
 const chartConfig = {
-  conteo: { label: "Escalamientos", color: ACCENT_PRIMARY },
+  conteo: { label: "Escalamientos" },
 } satisfies ChartConfig;
 
-/** Motivos son texto libre: con muchos únicos, se agrupan los menos frecuentes en "Otros". */
-const MAX_MOTIVOS = 8;
-const ROW_HEIGHT_PX = 32;
-const MIN_HEIGHT_PX = 220;
-const MAX_LABEL_CHARS = 26;
+/** Motivos fuera de T1–T5 (texto libre): los más frecuentes usan los slots restantes; el resto va a "Otros". */
+const MAX_MOTIVOS_LIBRES = CATEGORICAL_THEME.length - Object.keys(NOMBRES_TOPICO).length;
 
-const LEYENDA_TOPICOS =
-  "T1 — Sin acceso al programa | T2 — Pago o suscripción | T3 — Cancelación o reembolso | T4 — Consulta general del programa | T5 — Caso no clasificado";
+type Punto = {
+  motivo: string;
+  etiqueta: string;
+  conteo: number;
+  color: string;
+  esOtros: boolean;
+  motivosOriginales: string[];
+};
 
-function truncar(texto: string) {
-  return texto.length > MAX_LABEL_CHARS ? `${texto.slice(0, MAX_LABEL_CHARS - 1)}…` : texto;
+/** Cada tópico conserva siempre su color (T1 = slot 1, …) para que no cambie al variar el período. */
+function colorTopico(motivo: string): string | null {
+  const idx = Object.keys(NOMBRES_TOPICO).indexOf(motivo);
+  return idx >= 0 ? CATEGORICAL_THEME[idx] : null;
 }
 
-type Punto = { motivo: string; etiqueta: string; conteo: number; esOtros: boolean; motivosOriginales: string[] };
+function construirPuntos(data: MotivoItem[]): Punto[] {
+  const ordenado = [...data].sort((a, b) => b.conteo - a.conteo);
+  const topicos = ordenado.filter((d) => colorTopico(d.motivo) != null);
+  const libres = ordenado.filter((d) => colorTopico(d.motivo) == null);
+  const libresPrincipales = libres.slice(0, MAX_MOTIVOS_LIBRES);
+  const resto = libres.slice(MAX_MOTIVOS_LIBRES);
+  const otrosConteo = resto.reduce((acc, d) => acc + d.conteo, 0);
+  const primerSlotLibre = Object.keys(NOMBRES_TOPICO).length;
+
+  return [
+    ...topicos.map((d) => ({
+      motivo: d.motivo,
+      etiqueta: etiquetaTopico(d.motivo),
+      conteo: d.conteo,
+      color: colorTopico(d.motivo)!,
+      esOtros: false,
+      motivosOriginales: [d.motivo],
+    })),
+    ...libresPrincipales.map((d, i) => ({
+      motivo: d.motivo,
+      etiqueta: d.motivo,
+      conteo: d.conteo,
+      color: CATEGORICAL_THEME[primerSlotLibre + i],
+      esOtros: false,
+      motivosOriginales: [d.motivo],
+    })),
+    ...(otrosConteo > 0
+      ? [
+          {
+            motivo: `Otros (${resto.length} motivos)`,
+            etiqueta: `Otros (${resto.length} motivos)`,
+            conteo: otrosConteo,
+            color: CATEGORICAL_OTROS_COLOR,
+            esOtros: true,
+            motivosOriginales: resto.map((d) => d.motivo),
+          },
+        ]
+      : []),
+  ].sort((a, b) => Number(a.esOtros) - Number(b.esOtros) || b.conteo - a.conteo);
+}
 
 export function MotivosEscalamientoCard({
   data,
@@ -39,68 +85,67 @@ export function MotivosEscalamientoCard({
 }) {
   const [seleccion, setSeleccion] = useState<{ titulo: string; motivos: string[] } | null>(null);
 
-  const ordenado = [...data].sort((a, b) => b.conteo - a.conteo);
-  const principales = ordenado.slice(0, MAX_MOTIVOS);
-  const resto = ordenado.slice(MAX_MOTIVOS);
-  const otrosConteo = resto.reduce((acc, d) => acc + d.conteo, 0);
-
-  const puntos: Punto[] = [
-    ...principales.map((d) => ({
-      motivo: d.motivo,
-      etiqueta: truncar(d.motivo),
-      conteo: d.conteo,
-      esOtros: false,
-      motivosOriginales: [d.motivo],
-    })),
-    ...(otrosConteo > 0
-      ? [
-          {
-            motivo: `Otros (${resto.length} motivos)`,
-            etiqueta: `Otros (${resto.length})`,
-            conteo: otrosConteo,
-            esOtros: true,
-            motivosOriginales: resto.map((d) => d.motivo),
-          },
-        ]
-      : []),
-  ];
-
-  const altura = Math.max(MIN_HEIGHT_PX, puntos.length * ROW_HEIGHT_PX + 40);
+  const puntos = construirPuntos(data);
+  const total = puntos.reduce((acc, p) => acc + p.conteo, 0);
+  const abrir = (p: Punto) => setSeleccion({ titulo: p.etiqueta, motivos: p.motivosOriginales });
 
   return (
     <>
-      <ChartContainer config={chartConfig} className="aspect-auto w-full" style={{ height: altura }}>
-        <BarChart data={puntos} layout="vertical" margin={{ left: 0, right: 24, top: 4, bottom: 0 }}>
-          <CartesianGrid horizontal={false} stroke="var(--border)" />
-          <XAxis type="number" hide allowDecimals={false} />
-          <YAxis
-            type="category"
-            dataKey="etiqueta"
-            tickLine={false}
-            axisLine={false}
-            width={170}
-            interval={0}
-            tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-          />
-          <ChartTooltip
-            content={<ChartTooltipContent labelFormatter={(_, payload) => payload?.[0]?.payload?.motivo ?? ""} />}
-          />
-          <Bar dataKey="conteo" radius={[0, 4, 4, 0]}>
-            {puntos.map((p, i) => (
-              <Cell
-                key={i}
-                fill={p.esOtros ? CATEGORICAL_OTROS_COLOR : ACCENT_PRIMARY}
-                cursor="pointer"
-                onClick={() => setSeleccion({ titulo: p.motivo, motivos: p.motivosOriginales })}
+      <div className="flex flex-col items-center gap-6 sm:flex-row">
+        <div className="relative shrink-0">
+          <ChartContainer config={chartConfig} className="aspect-square h-52 w-52">
+            <PieChart>
+              <ChartTooltip
+                content={<ChartTooltipContent hideLabel formatter={(value, _name, item) => (
+                  <span>
+                    {item.payload.etiqueta}: <b className="tabular-nums">{formatNumero(Number(value))}</b>
+                  </span>
+                )} />}
               />
-            ))}
-          </Bar>
-        </BarChart>
-      </ChartContainer>
+              <Pie
+                data={puntos}
+                dataKey="conteo"
+                nameKey="etiqueta"
+                innerRadius={62}
+                outerRadius={92}
+                paddingAngle={2}
+                strokeWidth={0}
+              >
+                {puntos.map((p) => (
+                  <Cell key={p.motivo} fill={p.color} cursor="pointer" onClick={() => abrir(p)} />
+                ))}
+              </Pie>
+            </PieChart>
+          </ChartContainer>
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-3xl font-semibold tabular-nums">{formatNumero(total)}</span>
+            <span className="text-xs text-muted-foreground">escalamientos</span>
+          </div>
+        </div>
 
-      <p className="mt-2 truncate text-xs text-muted-foreground" title={LEYENDA_TOPICOS}>
-        {LEYENDA_TOPICOS}
-      </p>
+        <ul className="flex w-full min-w-0 flex-1 flex-col divide-y divide-border">
+          {puntos.map((p) => (
+            <li key={p.motivo}>
+              <button
+                type="button"
+                onClick={() => abrir(p)}
+                className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-muted/60"
+              >
+                <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: p.color }} />
+                <span className="min-w-0 flex-1 truncate" title={p.etiqueta}>
+                  {p.etiqueta}
+                </span>
+                <span className="font-medium tabular-nums">{formatNumero(p.conteo)}</span>
+                <span className="w-12 text-right text-xs tabular-nums text-muted-foreground">
+                  {formatPorcentaje((p.conteo / total) * 100)}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <p className="mt-2 text-xs text-muted-foreground">Haz clic en un motivo para ver las conversaciones y su detalle.</p>
 
       <MotivoEscalamientoDetalleDialog
         range={range}

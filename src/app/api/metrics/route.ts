@@ -6,6 +6,7 @@ import {
   getResueltoIa,
   getPrimeraRespuesta,
   getTiempoResolucion,
+  getCierresInactividad,
   getCsat,
 } from "@/lib/queries";
 import type { MetricsResponse } from "@/types/metrics";
@@ -24,13 +25,14 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const [conversaciones, chatsPorAgente, resueltoIa, primeraRespuesta, tiempoResolucion, csat] =
+    const [conversaciones, chatsPorAgente, resueltoIa, primeraRespuesta, tiempoResolucion, cierresInactividad, csat] =
       await Promise.all([
         getConversaciones(rango),
         getChatsPorAgente(rango),
         getResueltoIa(rango),
         getPrimeraRespuesta(rango),
         getTiempoResolucion(rango),
+        getCierresInactividad(rango),
         getCsat(rango),
       ]);
 
@@ -41,6 +43,7 @@ export async function GET(req: NextRequest) {
       resueltoIa,
       primeraRespuesta,
       tiempoResolucion,
+      cierresInactividad,
       csat,
     };
 

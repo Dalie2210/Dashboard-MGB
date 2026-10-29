@@ -50,6 +50,21 @@ export type CsatMetric = {
 
 export type CsatDetalleItem = { fecha: string; contactId: string; score: number };
 
+export type CierresInactividadMetric = {
+  inactividad: number;
+  resueltos: number;
+  /** % de los cierres del período que fueron automáticos por inactividad. */
+  porcentaje: number | null;
+  serieDiaria: SerieDiaria;
+};
+
+export type CierreInactividadItem = {
+  fecha: string;
+  contactId: string;
+  conversationId: string | null;
+  duracionSegundos: number | null;
+};
+
 export type MetricsResponse = {
   rango: { from: string; to: string };
   conversaciones: ConversacionesMetric;
@@ -57,5 +72,6 @@ export type MetricsResponse = {
   resueltoIa: ResueltoIaMetric;
   primeraRespuesta: TiempoMetric;
   tiempoResolucion: TiempoMetric;
+  cierresInactividad: CierresInactividadMetric;
   csat: CsatMetric;
 };

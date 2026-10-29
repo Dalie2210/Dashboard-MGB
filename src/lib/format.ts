@@ -35,5 +35,5 @@ export function formatDecimal(valor: number | null, decimales = 1): string {
 /** `value` de `ventas_camila` es un float en USD: separador decimal ".", no "," (es-CO). */
 export function formatUsd(valor: number | null): string {
   if (valor == null || !Number.isFinite(valor)) return "—";
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(valor);
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", currencyDisplay: "code" }).format(valor);
 }

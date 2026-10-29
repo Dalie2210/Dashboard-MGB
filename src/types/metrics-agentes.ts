@@ -18,6 +18,10 @@ export type CargaMetric = {
 export type VolumenRecibidoMetric = {
   contactos: number;
   asignaciones: number;
+  /** Solo Melissa: contactos escalados hacia ella, por agente IA de origen. */
+  porOrigen?: { agenteId: string; contactos: number }[];
+  /** Solo Melissa: contactos asignados sin escalamiento registrado en el período. */
+  sinEscalamiento?: number;
 };
 
 /** Escalamientos de este agente hacia Melissa. `porcentaje` = escaladas / atendidas.total. */
@@ -28,7 +32,7 @@ export type EscalamientoMetric = {
 
 export type MotivoItem = { motivo: string; conteo: number };
 
-export type MotivoDetalleItem = { fecha: string; motivo: string; contactId: string };
+export type MotivoDetalleItem = { fecha: string; motivo: string; detalle: string | null; contactId: string };
 
 /** Caso recibido por Melissa sin conversación cerrada posterior a la recepción. */
 export type CasoSinCerrarItem = {

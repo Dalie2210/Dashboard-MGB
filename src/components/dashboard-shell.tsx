@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -14,6 +14,8 @@ import { TendenciaConversacionesCard } from "@/components/cards/tendencia-conver
 import { ChatsPorAgenteCard } from "@/components/cards/chats-por-agente-card";
 import { TiempoCard } from "@/components/cards/tiempo-card";
 import { CsatDistribucionCard } from "@/components/cards/csat-distribucion-card";
+import { CierresInactividadCard } from "@/components/cards/cierres-inactividad-card";
+import { CierresInactividadDialog } from "@/components/cards/cierres-inactividad-dialog";
 import { CsatDetalleTable } from "@/components/cards/csat-detalle-table";
 import { AgentePanel } from "@/components/agente-panel";
 import { ACCENT_PRIMARY, ACCENT_SECONDARY } from "@/lib/chart-colors";
@@ -33,6 +35,7 @@ async function fetchMetrics(range: DateRange): Promise<MetricsResponse> {
 export function DashboardShell() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [cierresInactividadAbierto, setCierresInactividadAbierto] = useState(false);
 
   const range: DateRange =
     esRangoValido(searchParams.get("from"), searchParams.get("to")) ?? rangoPorDefecto();
@@ -165,6 +168,23 @@ export function DashboardShell() {
             >
               {data ? <TiempoCard data={data.tiempoResolucion} color={ACCENT_SECONDARY} /> : null}
             </BentoCard>
+
+            <BentoCard
+              span={12}
+              title="Cierres por inactividad (24 h sin respuesta)"
+              nota="Conversaciones que se cerraron solas porque la clienta no volvió a responder en 24 h. No confirman si el caso se resolvió y por eso no cuentan en el tiempo de resolución."
+              loading={isInitialLoading}
+              updating={isUpdating}
+              empty={data != null && data.cierresInactividad.inactividad === 0}
+              onClick={() => setCierresInactividadAbierto(true)}
+            >
+              {data ? <CierresInactividadCard data={data.cierresInactividad} /> : null}
+            </BentoCard>
+            <CierresInactividadDialog
+              range={range}
+              open={cierresInactividadAbierto}
+              onOpenChange={setCierresInactividadAbierto}
+            />
 
             <BentoCard
               span={12}

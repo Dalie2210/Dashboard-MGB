@@ -18,7 +18,7 @@ import { CsatDistribucionCard } from "@/components/cards/csat-distribucion-card"
 import { ResolucionesTopicoCard } from "@/components/cards/resoluciones-topico-card";
 import { ACCENT_PRIMARY, ACCENT_SECONDARY } from "@/lib/chart-colors";
 import { formatNumero, formatPorcentaje, formatUsd } from "@/lib/format";
-import { AGENTES, CAMILA_ID, MELISSA_ID, SAMI_ID } from "@/lib/agentes";
+import { AGENTES, CAMILA_ID, MELISSA_ID, SAMI_ID, nombreAgente } from "@/lib/agentes";
 import type { DateRange } from "@/lib/date-ranges";
 import type { AgenteMetricsResponse, DetalleTipo } from "@/types/metrics-agentes";
 
@@ -75,6 +75,7 @@ export function AgentePanel({
       <BentoCard
         span={4}
         title="Cantidad atendida"
+        nota="Conversaciones (chats) que tuvo este agente en el período, abiertas o cerradas. Una misma persona puede tener varias. No es lo mismo que contactos asignados: a un contacto se le puede asignar el agente sin que llegue a haber conversación."
         loading={isInitialLoading}
         updating={isUpdating}
         empty={atendidasVacio}
@@ -85,7 +86,8 @@ export function AgentePanel({
 
       <BentoCard
         span={4}
-        title="Tiempo promedio de respuesta"
+        title="Tiempo de primera respuesta (mediana)"
+        nota="Cuánto tarda el agente en contestar el primer mensaje de cada conversación. Se muestra la mediana (el valor del medio, menos sensible a casos extremos); el promedio aparece debajo."
         hint={
           data && data.tiempoRespuesta.sinSesion > 0
             ? `${formatNumero(data.tiempoRespuesta.sinSesion)} registros sin sesión asociada, excluidos`
@@ -101,13 +103,14 @@ export function AgentePanel({
 
       {agenteId === CAMILA_ID ? (
         <>
-          <BentoCard span={4} title="% de cierre" loading={isInitialLoading} updating={isUpdating} empty={atendidasVacio}>
+          <BentoCard span={4} title="% conversión a venta" nota="Compradores únicos (personas distintas con al menos una venta) dividido entre las conversaciones atendidas. No es lo mismo que las conversaciones cerradas." loading={isInitialLoading} updating={isUpdating} empty={atendidasVacio}>
             {data ? <KpiCard valor={formatPorcentaje(data.porcentajeCierre)} subtitulo="compradores únicos / atendidas" /> : null}
           </BentoCard>
 
           <BentoCard
             span={8}
             title="Ingresos (ventas)"
+            nota="Suma del valor de las ventas registradas en el período, con su evolución diaria."
             loading={isInitialLoading}
             updating={isUpdating}
             empty={data != null && data.ventas != null && data.ventas.transacciones === 0}
@@ -118,6 +121,7 @@ export function AgentePanel({
           <BentoCard
             span={4}
             title="% escalado a Melissa"
+            nota="Contactos distintos que este agente pasó a Melissa, como porcentaje de las conversaciones atendidas. Haz clic para ver cuáles."
             loading={isInitialLoading}
             updating={isUpdating}
             empty={atendidasVacio}
@@ -131,21 +135,22 @@ export function AgentePanel({
             ) : null}
           </BentoCard>
 
-          <BentoCard span={4} title="Transacciones" loading={isInitialLoading} updating={isUpdating} empty={atendidasVacio}>
+          <BentoCard span={4} title="Transacciones" nota="Número de ventas registradas en el período. Una persona puede tener más de una." loading={isInitialLoading} updating={isUpdating} empty={atendidasVacio}>
             {data?.ventas ? <KpiCard valor={formatNumero(data.ventas.transacciones)} /> : null}
           </BentoCard>
 
-          <BentoCard span={4} title="Ticket promedio" loading={isInitialLoading} updating={isUpdating} empty={atendidasVacio}>
+          <BentoCard span={4} title="Ticket promedio" nota="Valor promedio por venta: ingresos divididos entre el número de transacciones." loading={isInitialLoading} updating={isUpdating} empty={atendidasVacio}>
             {data?.ventas ? <KpiCard valor={formatUsd(data.ventas.ticketPromedio)} /> : null}
           </BentoCard>
 
-          <BentoCard span={4} title="Compradores únicos" loading={isInitialLoading} updating={isUpdating} empty={atendidasVacio}>
+          <BentoCard span={4} title="Compradores únicos" nota="Personas distintas (por correo) que compraron en el período, sin repetir a quien compró varias veces." loading={isInitialLoading} updating={isUpdating} empty={atendidasVacio}>
             {data?.ventas ? <KpiCard valor={formatNumero(data.ventas.compradores)} /> : null}
           </BentoCard>
 
           <BentoCard
             span={12}
             title="Objeciones identificadas"
+            nota="Razones por las que los clientes dudaron o no compraron, agrupadas por tipo. Haz clic en una para ver las conversaciones."
             loading={isInitialLoading}
             updating={isUpdating}
             empty={data != null && data.objeciones != null && data.objeciones.length === 0}
@@ -161,6 +166,7 @@ export function AgentePanel({
           <BentoCard
             span={4}
             title="% resuelto sin escalar"
+            nota="Lo contrario de % escalado a Melissa: la parte de los casos que el agente resolvió sin necesidad de pasarlos a Melissa."
             loading={isInitialLoading}
             updating={isUpdating}
             empty={atendidasVacio}
@@ -173,6 +179,7 @@ export function AgentePanel({
           <BentoCard
             span={4}
             title="% escalado a Melissa"
+            nota="Contactos distintos que este agente pasó a Melissa, como porcentaje de las conversaciones atendidas. Haz clic para ver cuáles."
             loading={isInitialLoading}
             updating={isUpdating}
             empty={atendidasVacio}
@@ -193,6 +200,7 @@ export function AgentePanel({
           <BentoCard
             span={4}
             title="Tiempo de resolución"
+            nota="Tiempo que pasa desde que empieza el caso hasta que el agente lo resuelve. Solo cuenta los casos resueltos en el período, por eso las muestras pueden ser pocas."
             loading={isInitialLoading}
             updating={isUpdating}
             empty={data != null && data.tiempoResolucionAgente != null && data.tiempoResolucionAgente.muestras === 0}
@@ -204,6 +212,7 @@ export function AgentePanel({
           <BentoCard
             span={4}
             title="Contactos asignados"
+            nota="Personas distintas a las que se les asignó este agente en el período. El número de asignaciones puede ser mayor porque a un mismo contacto se le puede asignar más de una vez. Es independiente de las conversaciones atendidas."
             loading={isInitialLoading}
             updating={isUpdating}
             onClick={abrirDetalle("asignaciones", "Contactos asignados")}
@@ -219,6 +228,7 @@ export function AgentePanel({
           <BentoCard
             span={6}
             title="Casos resueltos vs. abiertos"
+            nota="Reparto de las conversaciones atendidas según su estado actual: cerradas (resueltas) o todavía abiertas."
             loading={isInitialLoading}
             updating={isUpdating}
             empty={atendidasVacio}
@@ -227,13 +237,14 @@ export function AgentePanel({
             {data ? <ResueltosAbiertosCard data={data.atendidas} /> : null}
           </BentoCard>
 
-          <BentoCard span={6} title="Carga por día / hora" loading={isInitialLoading} updating={isUpdating} empty={atendidasVacio}>
+          <BentoCard span={6} title="Carga por día / hora" nota="Cuántas conversaciones empezaron en cada día de la semana y en cada hora del día (hora de Colombia). Sirve para ver cuándo hay más demanda." loading={isInitialLoading} updating={isUpdating} empty={atendidasVacio}>
             {data?.cargaDiaHora ? <CargaDiaHoraCard data={data.cargaDiaHora} /> : null}
           </BentoCard>
 
           <BentoCard
             span={4}
             title="CSAT de sus contactos"
+            nota="Satisfacción del cliente (1 a 5) de las personas que tuvieron conversación con este agente. Una calificación de 4 o 5 cuenta como satisfecha. La encuesta no guarda el agente, por eso se atribuye por contacto."
             hint="Contactos con conversación de Sami en el período"
             loading={isInitialLoading}
             updating={isUpdating}
@@ -246,6 +257,7 @@ export function AgentePanel({
           <BentoCard
             span={8}
             title="Distribución de calificaciones"
+            nota="Cuántas respuestas recibió cada nota del 1 al 5."
             loading={isInitialLoading}
             updating={isUpdating}
             empty={data != null && data.csat != null && data.csat.respuestas === 0}
@@ -257,6 +269,7 @@ export function AgentePanel({
           <BentoCard
             span={12}
             title="Resoluciones IA por tópico"
+            nota="Casos que la IA resolvió por sí sola, agrupados por el tema (tópico) del caso. Haz clic en una barra para ver las conversaciones."
             loading={isInitialLoading}
             updating={isUpdating}
             empty={data != null && data.resolucionesPorTopico != null && data.resolucionesPorTopico.length === 0}
@@ -270,6 +283,7 @@ export function AgentePanel({
           <BentoCard
             span={12}
             title="Motivos de escalamiento a Melissa"
+            nota="Por qué este agente pasó casos a Melissa, agrupado por motivo. Cada escalamiento cuenta una vez, así que el total puede superar los contactos escalados si a un contacto se le escaló más de una vez."
             hint={
               data?.motivosEscalamiento && data.motivosEscalamiento.length > 8
                 ? "Se muestran los 8 motivos más frecuentes; el resto se agrupa en \"Otros\""
@@ -292,21 +306,43 @@ export function AgentePanel({
           <BentoCard
             span={4}
             title="Volumen recibido (total)"
+            nota="Personas distintas que le llegaron a Melissa en el período. Abajo se desglosa quién las escaló; 'sin escalamiento registrado' son contactos asignados directamente, sin un escalamiento asociado."
             loading={isInitialLoading}
             updating={isUpdating}
             onClick={abrirDetalle("asignaciones", "Contactos recibidos")}
           >
             {data?.volumenRecibido ? (
-              <KpiCard
-                valor={formatNumero(data.volumenRecibido.contactos)}
-                subtitulo={`${formatNumero(data.volumenRecibido.asignaciones)} asignaciones · desglose por escalamiento pendiente`}
-              />
+              <div className="flex flex-col gap-3">
+                <KpiCard
+                  valor={formatNumero(data.volumenRecibido.contactos)}
+                  subtitulo={`${formatNumero(data.volumenRecibido.asignaciones)} asignaciones`}
+                />
+                {data.volumenRecibido.porOrigen && data.volumenRecibido.porOrigen.length > 0 ? (
+                  <ul className="flex flex-col gap-1 border-t border-border pt-2 text-xs">
+                    {data.volumenRecibido.porOrigen.map((o) => (
+                      <li key={o.agenteId} className="flex items-center justify-between gap-2">
+                        <span className="text-muted-foreground">Escalados por {nombreAgente(o.agenteId)}</span>
+                        <span className="font-medium tabular-nums text-foreground">{formatNumero(o.contactos)}</span>
+                      </li>
+                    ))}
+                    {data.volumenRecibido.sinEscalamiento ? (
+                      <li className="flex items-center justify-between gap-2">
+                        <span className="text-muted-foreground">Sin escalamiento registrado</span>
+                        <span className="font-medium tabular-nums text-foreground">
+                          {formatNumero(data.volumenRecibido.sinEscalamiento)}
+                        </span>
+                      </li>
+                    ) : null}
+                  </ul>
+                ) : null}
+              </div>
             ) : null}
           </BentoCard>
 
           <BentoCard
             span={4}
             title="Tiempo de resolución tras recibir el caso"
+            nota="Tiempo entre que el contacto le llega a Melissa y se cierra su conversación. Solo cuenta los casos que ya se cerraron."
             hint={
               data && data.tiempoResolucion && data.tiempoResolucion.sinCerrar > 0
                 ? `${formatNumero(data.tiempoResolucion.sinCerrar)} casos aún sin cerrar`
@@ -323,6 +359,7 @@ export function AgentePanel({
           <BentoCard
             span={4}
             title="Casos sin cerrar"
+            nota="Contactos que le llegaron a Melissa en el período y cuya conversación no se ha cerrado después de recibirlos."
             loading={isInitialLoading}
             updating={isUpdating}
             onClick={data?.tiempoResolucion ? () => setCasosSinCerrarAbierto(true) : undefined}
@@ -339,6 +376,7 @@ export function AgentePanel({
           <BentoCard
             span={6}
             title="Casos resueltos vs. abiertos"
+            nota="Reparto de las conversaciones atendidas según su estado actual: cerradas (resueltas) o todavía abiertas."
             loading={isInitialLoading}
             updating={isUpdating}
             empty={atendidasVacio}
@@ -347,13 +385,14 @@ export function AgentePanel({
             {data ? <ResueltosAbiertosCard data={data.atendidas} /> : null}
           </BentoCard>
 
-          <BentoCard span={6} title="Carga por día / hora" loading={isInitialLoading} updating={isUpdating} empty={atendidasVacio}>
+          <BentoCard span={6} title="Carga por día / hora" nota="Cuántas conversaciones empezaron en cada día de la semana y en cada hora del día (hora de Colombia). Sirve para ver cuándo hay más demanda." loading={isInitialLoading} updating={isUpdating} empty={atendidasVacio}>
             {data?.cargaDiaHora ? <CargaDiaHoraCard data={data.cargaDiaHora} /> : null}
           </BentoCard>
 
           <BentoCard
             span={12}
             title="Motivos de escalamiento"
+            nota="Razones por las que los demás agentes le pasaron casos a Melissa, agrupadas por motivo. Haz clic en un motivo para ver las conversaciones."
             hint={
               data?.motivosEscalamiento && data.motivosEscalamiento.length > 8
                 ? "Se muestran los 8 motivos más frecuentes; el resto se agrupa en \"Otros\""

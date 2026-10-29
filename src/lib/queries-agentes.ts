@@ -312,15 +312,15 @@ export async function getMotivosEscalamientoDetalle(
   if (motivos.length === 0) return [];
 
   const origen = filtroOrigen(agenteOrigen, 5);
-  const { rows } = await pool.query<{ fecha: string; motivo: string; contact_id: string }>(
-    `select fecha::text fecha, motivo, contact_id
+  const { rows } = await pool.query<{ fecha: string; motivo: string; detalle: string | null; contact_id: string }>(
+    `select fecha::text fecha, motivo, detalle, contact_id
      from ghl_escalamientos
      where fecha between $1 and $2 and agente_destino = $3 and motivo = any($4::text[])${origen.sql}
      order by fecha desc, created_at desc`,
     [from, to, MELISSA_ID, motivos, ...origen.params]
   );
 
-  return rows.map((r) => ({ fecha: r.fecha, motivo: r.motivo, contactId: r.contact_id }));
+  return rows.map((r) => ({ fecha: r.fecha, motivo: r.motivo, detalle: r.detalle, contactId: r.contact_id }));
 }
 
 export async function getObjeciones({ from, to }: Rango): Promise<ObjecionItem[]> {
@@ -371,7 +371,31 @@ export async function getVolumenRecibido(
      where fecha between $1 and $2 and ${norm} = $3`,
     [from, to, agenteId, AGENTE_POR_DEFECTO]
   );
-  return rows[0] ?? { contactos: 0, asignaciones: 0 };
+  const base = rows[0] ?? { contactos: 0, asignaciones: 0 };
+  if (agenteId !== MELISSA_ID) return base;
+
+  const origenNorm = sqlAgenteNormalizado("agente_origen", "$4");
+  const origen = await pool.query<{ agente_id: string; contactos: number }>(
+    `select ${origenNorm} agente_id, count(distinct contact_id)::int contactos
+     from ghl_escalamientos
+     where fecha between $1 and $2 and agente_destino = $3
+     group by 1 order by contactos desc`,
+    [from, to, MELISSA_ID, AGENTE_POR_DEFECTO]
+  );
+  const sinEsc = await pool.query<{ contactos: number }>(
+    `select count(distinct a.contact_id)::int contactos
+     from ghl_asignaciones_agente a
+     where a.fecha between $1 and $2 and ${sqlAgenteNormalizado("a.agente_id", "$4")} = $3
+       and not exists (select 1 from ghl_escalamientos e
+                       where e.contact_id = a.contact_id and e.agente_destino = $3
+                         and e.fecha between $1 and $2)`,
+    [from, to, agenteId, AGENTE_POR_DEFECTO]
+  );
+  return {
+    ...base,
+    porOrigen: origen.rows.map((r) => ({ agenteId: r.agente_id, contactos: r.contactos })),
+    sinEscalamiento: sinEsc.rows[0]?.contactos ?? 0,
+  };
 }
 
 export async function getTiempoResolucionAgente({ from, to }: Rango, agenteId: string): Promise<TiempoMetric> {
@@ -381,13 +405,13 @@ export async function getTiempoResolucionAgente({ from, to }: Rango, agenteId: s
               percentile_cont(0.5) within group (order by tiempo_resolucion_segundos)::float mediana,
               count(*)::int muestras
        from ghl_tiempo_resolucion
-       where fecha between $1 and $2 and agente_resolucion = $3`,
+       where fecha between $1 and $2 and agente_resolucion = $3 and tipo_cierre = 'resuelto'`,
       [from, to, agenteId]
     ),
     pool.query<{ fecha: string; valor: string | null }>(
       `select fecha::text fecha, avg(tiempo_resolucion_segundos)::float valor
        from ghl_tiempo_resolucion
-       where fecha between $1 and $2 and agente_resolucion = $3
+       where fecha between $1 and $2 and agente_resolucion = $3 and tipo_cierre = 'resuelto'
        group by fecha order by fecha`,
       [from, to, agenteId]
     ),
@@ -561,7 +585,7 @@ export async function getDetalleAgente(
       } else {
         sql = `select fecha::text fecha, contact_id, conversation_id, tiempo_resolucion_segundos celda
                from ghl_tiempo_resolucion
-               where fecha between $1 and $2 and agente_resolucion = $3
+               where fecha between $1 and $2 and agente_resolucion = $3 and tipo_cierre = 'resuelto'
                order by tiempo_resolucion_segundos desc`;
         params.pop();
       }

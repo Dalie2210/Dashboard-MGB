@@ -6,12 +6,20 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DetalleTable, EnlaceConversacion, type Columna } from "@/components/cards/detalle-table";
 import { formatFechaDia, formatNumero } from "@/lib/format";
 import { linkConversacionGhl } from "@/lib/ghl-links";
+import { etiquetaTopico } from "@/lib/topicos";
 import type { DateRange } from "@/lib/date-ranges";
 import type { MotivoDetalleItem } from "@/types/metrics-agentes";
 
 const COLUMNAS: Columna<MotivoDetalleItem>[] = [
   { id: "fecha", header: "Fecha", valor: (f) => f.fecha, texto: (f) => formatFechaDia(f.fecha) },
-  { id: "motivo", header: "Motivo de escalamiento", valor: (f) => f.motivo, filtro: "opciones" },
+  {
+    id: "motivo",
+    header: "Motivo de escalamiento",
+    valor: (f) => f.motivo,
+    texto: (f) => etiquetaTopico(f.motivo),
+    filtro: "opciones",
+  },
+  { id: "detalle", header: "Detalle", valor: (f) => f.detalle, texto: (f) => f.detalle ?? "—" },
   {
     id: "link",
     header: "Link de la conversación",

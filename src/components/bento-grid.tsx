@@ -1,7 +1,10 @@
-import { Maximize2 } from "lucide-react";
+"use client";
+
+import { Info, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function BentoGrid({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
@@ -23,6 +26,7 @@ const SPAN_CLASSES: Record<number, string> = {
 export function BentoCard({
   span = 4,
   title,
+  nota,
   hint,
   loading,
   updating,
@@ -34,6 +38,8 @@ export function BentoCard({
 }: {
   span?: 4 | 5 | 6 | 7 | 8 | 12;
   title: string;
+  /** Explicación fija de qué mide la tarjeta; se muestra en un tooltip junto al título. */
+  nota?: string;
   hint?: string;
   loading?: boolean;
   /** Refetch en segundo plano (React Query + keepPreviousData): atenúa sin reemplazar por skeleton. */
@@ -73,7 +79,24 @@ export function BentoCard({
         : {})}
     >
       <CardHeader>
-        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+          {title}
+          {nota ? (
+            <Tooltip>
+              <TooltipTrigger
+                aria-label={`Qué mide: ${title}`}
+                className="rounded-full text-muted-foreground/60 transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+              >
+                <Info className="size-3.5" />
+              </TooltipTrigger>
+              <TooltipContent side="bottom" align="start">
+                {nota}
+              </TooltipContent>
+            </Tooltip>
+          ) : null}
+        </CardTitle>
         {conDetalle ? (
           <Maximize2
             aria-label="Ver detalle"

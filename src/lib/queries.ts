@@ -8,6 +8,8 @@ import type {
   TiempoMetric,
   CsatMetric,
   CsatDetalleItem,
+  CierresInactividadMetric,
+  CierreInactividadItem,
   SerieDiaria,
 } from "@/types/metrics";
 
@@ -104,18 +106,23 @@ export async function getResueltoIa({ from, to }: Rango): Promise<ResueltoIaMetr
   };
 }
 
-async function getTiempoPromedio(tabla: string, columna: string, { from, to }: Rango): Promise<TiempoMetric> {
+async function getTiempoPromedio(
+  tabla: string,
+  columna: string,
+  { from, to }: Rango,
+  filtroExtra = ""
+): Promise<TiempoMetric> {
   const [totales, serie] = await Promise.all([
     pool.query<{ promedio: string | null; mediana: string | null; muestras: number }>(
       `select avg(${columna})::float promedio,
               percentile_cont(0.5) within group (order by ${columna})::float mediana,
               count(*)::int muestras
-       from ${tabla} where fecha between $1 and $2`,
+       from ${tabla} where fecha between $1 and $2${filtroExtra}`,
       [from, to]
     ),
     pool.query<{ fecha: string; valor: string | null }>(
       `select fecha::text fecha, avg(${columna})::float valor
-       from ${tabla} where fecha between $1 and $2
+       from ${tabla} where fecha between $1 and $2${filtroExtra}
        group by fecha order by fecha`,
       [from, to]
     ),
@@ -135,8 +142,67 @@ export function getPrimeraRespuesta(rango: Rango): Promise<TiempoMetric> {
   return getTiempoPromedio("ghl_primera_respuesta", "tiempo_respuesta_segundos", rango);
 }
 
+/** Solo cierres confirmados: un cierre por inactividad mide silencio de la clienta, no resolución. */
 export function getTiempoResolucion(rango: Rango): Promise<TiempoMetric> {
-  return getTiempoPromedio("ghl_tiempo_resolucion", "tiempo_resolucion_segundos", rango);
+  return getTiempoPromedio(
+    "ghl_tiempo_resolucion",
+    "tiempo_resolucion_segundos",
+    rango,
+    " and tipo_cierre = 'resuelto'"
+  );
+}
+
+export async function getCierresInactividad({ from, to }: Rango): Promise<CierresInactividadMetric> {
+  const [totales, serie] = await Promise.all([
+    pool.query<{ inactividad: number; resueltos: number }>(
+      `select count(*) filter (where tipo_cierre = 'inactividad')::int inactividad,
+              count(*) filter (where tipo_cierre = 'resuelto')::int resueltos
+       from ghl_tiempo_resolucion where fecha between $1 and $2`,
+      [from, to]
+    ),
+    pool.query<{ fecha: string; valor: number }>(
+      `select fecha::text fecha, count(*)::int valor
+       from ghl_tiempo_resolucion
+       where fecha between $1 and $2 and tipo_cierre = 'inactividad'
+       group by fecha order by fecha`,
+      [from, to]
+    ),
+  ]);
+
+  const t = totales.rows[0] ?? { inactividad: 0, resueltos: 0 };
+  const totalCierres = t.inactividad + t.resueltos;
+
+  return {
+    inactividad: t.inactividad,
+    resueltos: t.resueltos,
+    porcentaje: totalCierres > 0 ? (t.inactividad / totalCierres) * 100 : null,
+    serieDiaria: serieDesdeFilas(serie.rows),
+  };
+}
+
+const CIERRES_INACTIVIDAD_LIMITE = 2000;
+
+export async function getCierresInactividadDetalle({ from, to }: Rango): Promise<CierreInactividadItem[]> {
+  const { rows } = await pool.query<{
+    fecha: string;
+    contact_id: string;
+    conversation_id: string | null;
+    tiempo_resolucion_segundos: number | null;
+  }>(
+    `select fecha::text fecha, contact_id, conversation_id, tiempo_resolucion_segundos
+     from ghl_tiempo_resolucion
+     where fecha between $1 and $2 and tipo_cierre = 'inactividad'
+     order by fecha desc, tiempo_resolucion_segundos desc
+     limit ${CIERRES_INACTIVIDAD_LIMITE}`,
+    [from, to]
+  );
+
+  return rows.map((r) => ({
+    fecha: r.fecha,
+    contactId: r.contact_id,
+    conversationId: r.conversation_id,
+    duracionSegundos: r.tiempo_resolucion_segundos != null ? Number(r.tiempo_resolucion_segundos) : null,
+  }));
 }
 
 export async function getCsat({ from, to }: Rango): Promise<CsatMetric> {

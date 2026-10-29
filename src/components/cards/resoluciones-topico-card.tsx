@@ -5,6 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell, LabelList } from "rec
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { ResolucionesDetalleDialog } from "@/components/cards/resoluciones-detalle-dialog";
 import { ACCENT_SECONDARY, CATEGORICAL_OTROS_COLOR } from "@/lib/chart-colors";
+import { NOMBRES_TOPICO, etiquetaTopico } from "@/lib/topicos";
 import type { DateRange } from "@/lib/date-ranges";
 import type { TopicoItem } from "@/types/metrics-agentes";
 
@@ -12,22 +13,8 @@ const chartConfig = {
   conteo: { label: "Resoluciones", color: ACCENT_SECONDARY },
 } satisfies ChartConfig;
 
-/** Misma codificación de tópicos que la leyenda de "Motivos de escalamiento". */
-const NOMBRES_TOPICO: Record<string, string> = {
-  T1: "Sin acceso al programa",
-  T2: "Pago o suscripción",
-  T3: "Cancelación o reembolso",
-  T4: "Consulta general del programa",
-  T5: "Caso no clasificado",
-};
-
 const ROW_HEIGHT_PX = 36;
 const MIN_HEIGHT_PX = 160;
-
-function etiquetaTopico(topico: string): string {
-  const nombre = NOMBRES_TOPICO[topico];
-  return nombre ? `${topico} — ${nombre}` : topico;
-}
 
 export function ResolucionesTopicoCard({
   data,

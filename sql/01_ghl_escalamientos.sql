@@ -9,7 +9,8 @@ create table public.ghl_escalamientos (
   sesion_id integer null references ghl_conversaciones (id),
   agente_origen text null,        -- ID GHL; vacío/NULL ⇒ Camila
   agente_destino text not null,   -- ID GHL
-  motivo text not null,
+  motivo text not null,           -- Sami -> Melissa: solo el código T1–T5
+  detalle text null,              -- texto explicativo del motivo
   fecha date not null default current_date,
   created_at timestamp with time zone not null default now()
 );
