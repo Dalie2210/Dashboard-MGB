@@ -296,9 +296,9 @@ export function AgentePanel({
           </BentoCard>
 
           <BentoCard
-            span={12}
+            span={6}
             title="Resoluciones IA por tópico"
-            nota="Casos que la IA resolvió por sí sola, agrupados por el tema (tópico) del caso. Haz clic en una barra para ver las conversaciones."
+            nota="Casos que la IA resolvió por sí sola, agrupados por el tema (tópico) del caso. Compárala con los motivos de escalamiento para ver en qué temas Sami resuelve y en cuáles necesita más entrenamiento. Haz clic en una barra para ver las conversaciones."
             loading={isInitialLoading}
             updating={isUpdating}
             empty={data != null && data.resolucionesPorTopico != null && data.resolucionesPorTopico.length === 0}
@@ -310,7 +310,7 @@ export function AgentePanel({
           </BentoCard>
 
           <BentoCard
-            span={12}
+            span={6}
             title="Motivos de escalamiento a Melissa"
             nota="Por qué este agente pasó casos a Melissa, agrupado por motivo. Cada escalamiento cuenta una vez, así que el total puede superar los contactos escalados si a un contacto se le escaló más de una vez."
             hint={

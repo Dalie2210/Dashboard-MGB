@@ -44,7 +44,7 @@ export function ResolucionesTopicoCard({
             dataKey="etiqueta"
             tickLine={false}
             axisLine={false}
-            width={230}
+            width={200}
             interval={0}
             tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
           />

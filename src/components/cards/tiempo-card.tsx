@@ -33,7 +33,10 @@ export function TiempoCard({
           promedio {formatDuracion(data.promedioSegundos)} · {data.muestras.toLocaleString("es-CO")} muestras
         </p>
         {insuficiente ? (
-          <p className="text-xs font-medium text-muted-foreground">Muestra insuficiente</p>
+          <p className="text-xs font-medium text-muted-foreground">
+            Muestra insuficiente
+            {data.muestras === 1 ? " · un solo dato no sirve como indicador" : ""}
+          </p>
         ) : null}
       </div>
       {data.serieDiaria.length > 1 && !insuficiente ? (
