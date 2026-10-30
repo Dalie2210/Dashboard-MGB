@@ -9,6 +9,8 @@ import {
   getCierresInactividad,
   getCsat,
 } from "@/lib/queries";
+import { getCsatAgente } from "@/lib/queries-agentes";
+import { AGENTES_CON_PANEL } from "@/lib/agentes";
 import type { MetricsResponse } from "@/types/metrics";
 
 export const runtime = "nodejs";
@@ -35,6 +37,14 @@ export async function GET(req: NextRequest) {
         getCierresInactividad(rango),
         getCsat(rango),
       ]);
+
+    const csatAgentes = await Promise.all(AGENTES_CON_PANEL.map((id) => getCsatAgente(rango, id)));
+    csat.porAgente = AGENTES_CON_PANEL.map((agenteId, i) => ({
+      agenteId,
+      promedio: csatAgentes[i].promedio,
+      respuestas: csatAgentes[i].respuestas,
+      tasaRespuesta: csatAgentes[i].tasaRespuesta,
+    }));
 
     const body: MetricsResponse = {
       rango,

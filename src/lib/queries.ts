@@ -1,3 +1,4 @@
+import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
 import { pool } from "@/lib/db";
 import { AGENTE_POR_DEFECTO, nombreAgente } from "@/lib/agentes";
 import { sqlAgenteNormalizado } from "@/lib/sql-agentes";
@@ -5,6 +6,7 @@ import type {
   ConversacionesMetric,
   ChatsPorAgenteMetric,
   ResueltoIaMetric,
+  PrimeraRespuestaMetric,
   TiempoMetric,
   CsatMetric,
   CsatDetalleItem,
@@ -24,10 +26,11 @@ function serieDesdeFilas(filas: { fecha: string | Date; valor: string | number |
 
 export async function getConversaciones({ from, to }: Rango): Promise<ConversacionesMetric> {
   const [totales, serie] = await Promise.all([
-    pool.query<{ total: number; abiertas: number; cerradas: number }>(
+    pool.query<{ total: number; abiertas: number; cerradas: number; estancadas: number }>(
       `select count(*)::int total,
               count(*) filter (where estado = 'abierta')::int abiertas,
-              count(*) filter (where estado <> 'abierta')::int cerradas
+              count(*) filter (where estado <> 'abierta')::int cerradas,
+              count(*) filter (where estado = 'abierta' and fecha < current_date - 3)::int estancadas
        from ghl_conversaciones where fecha between $1 and $2`,
       [from, to]
     ),
@@ -39,12 +42,13 @@ export async function getConversaciones({ from, to }: Rango): Promise<Conversaci
     ),
   ]);
 
-  const t = totales.rows[0] ?? { total: 0, abiertas: 0, cerradas: 0 };
+  const t = totales.rows[0] ?? { total: 0, abiertas: 0, cerradas: 0, estancadas: 0 };
 
   return {
     total: t.total,
     abiertas: t.abiertas,
     cerradas: t.cerradas,
+    abiertasMasDe3Dias: t.estancadas,
     serieDiaria: serieDesdeFilas(serie.rows),
   };
 }
@@ -71,15 +75,40 @@ export async function getChatsPorAgente({ from, to }: Rango): Promise<ChatsPorAg
   };
 }
 
+async function getPorcentajeResueltoIa({ from, to }: Rango) {
+  const { rows } = await pool.query<{ total_conv: number; conv_ia: number; conv_camila: number; conv_sami: number }>(
+    `with ia as (select contact_id, bool_or(agente_ia = 'Camila') camila, bool_or(agente_ia = 'Sami') sami
+                 from ghl_resoluciones_ia where fecha between $1 and $2 group by contact_id)
+     select count(*)::int total_conv,
+            count(*) filter (where ia.contact_id is not null)::int conv_ia,
+            count(*) filter (where ia.camila)::int conv_camila,
+            count(*) filter (where ia.sami)::int conv_sami
+     from ghl_conversaciones c left join ia on ia.contact_id = c.contact_id
+     where c.fecha between $1 and $2`,
+    [from, to]
+  );
+  const t = rows[0] ?? { total_conv: 0, conv_ia: 0, conv_camila: 0, conv_sami: 0 };
+  const pct = (n: number) => (t.total_conv > 0 ? Math.min(100, Math.max(0, (n / t.total_conv) * 100)) : null);
+  return {
+    totalConversaciones: t.total_conv,
+    conversacionesIa: t.conv_ia,
+    porcentaje: pct(t.conv_ia),
+    porcentajeCamila: pct(t.conv_camila),
+    porcentajeSami: pct(t.conv_sami),
+  };
+}
+
+/** Periodo inmediatamente anterior, de la misma duración en días. */
+function rangoAnterior({ from, to }: Rango): Rango {
+  const dias = differenceInCalendarDays(parseISO(to), parseISO(from)) + 1;
+  const fmt = (d: Date) => format(d, "yyyy-MM-dd");
+  return { from: fmt(addDays(parseISO(from), -dias)), to: fmt(addDays(parseISO(from), -1)) };
+}
+
 export async function getResueltoIa({ from, to }: Rango): Promise<ResueltoIaMetric> {
-  const [totales, porResultado, porAgenteIa] = await Promise.all([
-    pool.query<{ total_conv: number; conv_ia: number }>(
-      `with ia as (select distinct contact_id from ghl_resoluciones_ia where fecha between $1 and $2)
-       select count(*)::int total_conv,
-              count(*) filter (where c.contact_id in (select contact_id from ia))::int conv_ia
-       from ghl_conversaciones c where c.fecha between $1 and $2`,
-      [from, to]
-    ),
+  const [actual, anterior, porResultado, porAgenteIa] = await Promise.all([
+    getPorcentajeResueltoIa({ from, to }),
+    getPorcentajeResueltoIa(rangoAnterior({ from, to })),
     pool.query<{ clave: string | null; conteo: number }>(
       `select coalesce(resultado, 'Sin dato') clave, count(*)::int conteo
        from ghl_resoluciones_ia where fecha between $1 and $2
@@ -94,13 +123,9 @@ export async function getResueltoIa({ from, to }: Rango): Promise<ResueltoIaMetr
     ),
   ]);
 
-  const t = totales.rows[0] ?? { total_conv: 0, conv_ia: 0 };
-  const porcentaje = t.total_conv > 0 ? Math.min(100, Math.max(0, (t.conv_ia / t.total_conv) * 100)) : null;
-
   return {
-    totalConversaciones: t.total_conv,
-    conversacionesIa: t.conv_ia,
-    porcentaje,
+    ...actual,
+    porcentajeAnterior: anterior.porcentaje,
     porResultado: porResultado.rows.map((r) => ({ clave: r.clave ?? "Sin dato", conteo: r.conteo })),
     porAgenteIa: porAgenteIa.rows.map((r) => ({ clave: r.clave ?? "Sin dato", conteo: r.conteo })),
   };
@@ -138,8 +163,58 @@ async function getTiempoPromedio(
   };
 }
 
-export function getPrimeraRespuesta(rango: Rango): Promise<TiempoMetric> {
-  return getTiempoPromedio("ghl_primera_respuesta", "tiempo_respuesta_segundos", rango);
+/**
+ * Separa la primera respuesta en IA y humana. Si la sesión ya estaba escalada cuando se registró la respuesta,
+ * la respondió una persona (Melissa) y el tiempo se mide desde el escalamiento; si no, es la IA y se mide desde
+ * el inicio de la conversación. Solo se registra una primera respuesta por sesión, así que una sesión que la IA
+ * respondió antes de escalar no aporta muestra humana.
+ */
+export async function getPrimeraRespuesta({ from, to }: Rango): Promise<PrimeraRespuestaMetric> {
+  const base = `with base as (
+      select pr.fecha,
+             (e.created_at is not null) humana,
+             case when e.created_at is not null
+                  then extract(epoch from (pr.created_at - e.created_at))
+                  else pr.tiempo_respuesta_segundos end valor
+      from ghl_primera_respuesta pr
+      left join lateral (
+        select created_at from ghl_escalamientos e
+        where e.sesion_id = pr.sesion_id and e.created_at <= pr.created_at
+        order by e.created_at desc limit 1
+      ) e on true
+      where pr.fecha between $1 and $2
+    )`;
+
+  const [totales, serie] = await Promise.all([
+    pool.query<{ humana: boolean; promedio: number | null; mediana: number | null; muestras: number }>(
+      `${base}
+       select humana, avg(valor)::float promedio,
+              percentile_cont(0.5) within group (order by valor)::float mediana,
+              count(*)::int muestras
+       from base group by humana`,
+      [from, to]
+    ),
+    pool.query<{ humana: boolean; fecha: string; valor: number | null }>(
+      `${base}
+       select humana, fecha::text fecha, avg(valor)::float valor
+       from base group by humana, fecha order by fecha`,
+      [from, to]
+    ),
+  ]);
+
+  const armar = (humana: boolean): TiempoMetric => {
+    const t = totales.rows.find((r) => r.humana === humana);
+    return {
+      promedioSegundos: t?.promedio ?? null,
+      medianaSegundos: t?.mediana ?? null,
+      muestras: t?.muestras ?? 0,
+      serieDiaria: serieDesdeFilas(
+        serie.rows.filter((r) => r.humana === humana).map((r) => ({ fecha: r.fecha, valor: r.valor ?? 0 }))
+      ),
+    };
+  };
+
+  return { ia: armar(false), humana: armar(true) };
 }
 
 /** Solo cierres confirmados: un cierre por inactividad mide silencio de la clienta, no resolución. */
@@ -244,13 +319,41 @@ export async function getCsat({ from, to }: Rango): Promise<CsatMetric> {
 export async function getCsatDetalle({ from, to }: Rango, scores: number[]): Promise<CsatDetalleItem[]> {
   if (scores.length === 0) return [];
 
-  const { rows } = await pool.query<{ fecha: string; contact_id: string; score: number }>(
-    `select fecha::text fecha, contact_id, score
-     from ghl_csat
-     where fecha between $1 and $2 and score = any($3::int[])
-     order by fecha desc, created_at desc`,
-    [from, to, scores]
+  const { rows } = await pool.query<{
+    fecha: string;
+    contact_id: string;
+    score: number;
+    agente_id: string | null;
+    motivo: string | null;
+  }>(
+    `select s.fecha::text fecha, s.contact_id, s.score,
+            ${sqlAgenteNormalizado("conv.agente_asignado", "$4")} agente_id,
+            esc.motivo
+     from ghl_csat s
+     left join lateral (
+       select c.agente_asignado
+       from ghl_conversaciones c
+       where c.contact_id = s.contact_id
+       order by c.created_at desc
+       limit 1
+     ) conv on true
+     left join lateral (
+       select e.motivo
+       from ghl_escalamientos e
+       where e.contact_id = s.contact_id
+       order by e.created_at desc
+       limit 1
+     ) esc on true
+     where s.fecha between $1 and $2 and s.score = any($3::int[])
+     order by s.fecha desc, s.created_at desc`,
+    [from, to, scores, AGENTE_POR_DEFECTO]
   );
 
-  return rows.map((r) => ({ fecha: r.fecha, contactId: r.contact_id, score: r.score }));
+  return rows.map((r) => ({
+    fecha: r.fecha,
+    contactId: r.contact_id,
+    score: r.score,
+    agente: r.agente_id ? nombreAgente(r.agente_id) : null,
+    motivo: r.motivo,
+  }));
 }

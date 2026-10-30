@@ -206,7 +206,7 @@ export function AgentePanel({
             empty={data != null && data.tiempoResolucionAgente != null && data.tiempoResolucionAgente.muestras === 0}
             onClick={abrirDetalle("tiempo-resolucion", "Tiempo de resolución · más lentas primero")}
           >
-            {data?.tiempoResolucionAgente ? <TiempoCard data={data.tiempoResolucionAgente} color={ACCENT_SECONDARY} /> : null}
+            {data?.tiempoResolucionAgente ? <TiempoCard data={data.tiempoResolucionAgente} color={ACCENT_SECONDARY} minMuestras={10} /> : null}
           </BentoCard>
 
           <BentoCard
@@ -353,7 +353,7 @@ export function AgentePanel({
             empty={data != null && data.tiempoResolucion != null && data.tiempoResolucion.muestras === 0}
             onClick={abrirDetalle("tiempo-resolucion", "Tiempo de resolución tras recibir el caso · más lentos primero")}
           >
-            {data?.tiempoResolucion ? <TiempoCard data={data.tiempoResolucion} color={ACCENT_SECONDARY} /> : null}
+            {data?.tiempoResolucion ? <TiempoCard data={data.tiempoResolucion} color={ACCENT_SECONDARY} minMuestras={10} /> : null}
           </BentoCard>
 
           <BentoCard

@@ -4,6 +4,7 @@ export type ConversacionesMetric = {
   total: number;
   abiertas: number;
   cerradas: number;
+  abiertasMasDe3Dias?: number;
   serieDiaria: SerieDiaria;
 };
 
@@ -25,6 +26,10 @@ export type ResueltoIaMetric = {
   totalConversaciones: number;
   conversacionesIa: number;
   porcentaje: number | null;
+  /** % del periodo inmediatamente anterior (misma duración). */
+  porcentajeAnterior: number | null;
+  porcentajeCamila: number | null;
+  porcentajeSami: number | null;
   porResultado: ResueltoIaDesglose;
   porAgenteIa: ResueltoIaDesglose;
 };
@@ -46,9 +51,24 @@ export type CsatMetric = {
   distribucion: CsatDistribucionItem[];
   pendientesEnRango: number;
   tasaRespuesta: number | null;
+  /** Solo en el dashboard general: CSAT atribuido a cada agente con panel. */
+  porAgente?: CsatAgenteItem[];
 };
 
-export type CsatDetalleItem = { fecha: string; contactId: string; score: number };
+export type CsatAgenteItem = {
+  agenteId: string;
+  promedio: number | null;
+  respuestas: number;
+  tasaRespuesta: number | null;
+};
+
+export type CsatDetalleItem = {
+  fecha: string;
+  contactId: string;
+  score: number;
+  agente: string | null;
+  motivo: string | null;
+};
 
 export type CierresInactividadMetric = {
   inactividad: number;
@@ -65,12 +85,14 @@ export type CierreInactividadItem = {
   duracionSegundos: number | null;
 };
 
+export type PrimeraRespuestaMetric = { ia: TiempoMetric; humana: TiempoMetric };
+
 export type MetricsResponse = {
   rango: { from: string; to: string };
   conversaciones: ConversacionesMetric;
   chatsPorAgente: ChatsPorAgenteMetric;
   resueltoIa: ResueltoIaMetric;
-  primeraRespuesta: TiempoMetric;
+  primeraRespuesta: PrimeraRespuestaMetric;
   tiempoResolucion: TiempoMetric;
   cierresInactividad: CierresInactividadMetric;
   csat: CsatMetric;

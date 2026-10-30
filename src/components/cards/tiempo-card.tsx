@@ -9,18 +9,34 @@ const chartConfig = {
   valor: { label: "Segundos" },
 } satisfies ChartConfig;
 
-export function TiempoCard({ data, color }: { data: TiempoMetric; color: string }) {
+export function TiempoCard({
+  data,
+  color,
+  minMuestras = 0,
+}: {
+  data: TiempoMetric;
+  color: string;
+  minMuestras?: number;
+}) {
+  const insuficiente = data.muestras < minMuestras;
   return (
     <div className="flex items-center justify-between gap-4">
       <div className="flex flex-col gap-1">
-        <p className="text-3xl font-semibold tabular-nums text-foreground">
+        <p
+          className={`text-3xl font-semibold tabular-nums ${
+            insuficiente ? "text-muted-foreground/60" : "text-foreground"
+          }`}
+        >
           {formatDuracion(data.medianaSegundos)}
         </p>
         <p className="text-xs text-muted-foreground">
           promedio {formatDuracion(data.promedioSegundos)} · {data.muestras.toLocaleString("es-CO")} muestras
         </p>
+        {insuficiente ? (
+          <p className="text-xs font-medium text-muted-foreground">Muestra insuficiente</p>
+        ) : null}
       </div>
-      {data.serieDiaria.length > 1 ? (
+      {data.serieDiaria.length > 1 && !insuficiente ? (
         <ChartContainer config={chartConfig} className="aspect-auto h-14 w-28 shrink-0">
           <LineChart data={data.serieDiaria} margin={{ left: 0, right: 0, top: 4, bottom: 0 }}>
             <YAxis hide domain={["dataMin", "dataMax"]} />

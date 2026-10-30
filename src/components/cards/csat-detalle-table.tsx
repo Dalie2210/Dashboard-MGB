@@ -9,15 +9,30 @@ import { DetalleTable, EnlaceConversacion, type Columna } from "@/components/car
 import { cn } from "@/lib/utils";
 import { CSAT_ORDINAL_STEPS } from "@/lib/chart-colors";
 import { formatFechaDia } from "@/lib/format";
+import { etiquetaTopico } from "@/lib/topicos";
 import { linkConversacionGhl } from "@/lib/ghl-links";
 import type { DateRange } from "@/lib/date-ranges";
 import type { CsatDetalleItem } from "@/types/metrics";
 
 const SCORES = [1, 2, 3, 4, 5] as const;
-const SCORES_POR_DEFECTO = [1, 2, 3];
+const SCORES_POR_DEFECTO = [1, 2];
 
 const COLUMNAS: Columna<CsatDetalleItem>[] = [
   { id: "fecha", header: "Fecha", valor: (f) => f.fecha, texto: (f) => formatFechaDia(f.fecha) },
+  {
+    id: "agente",
+    header: "Agente",
+    valor: (f) => f.agente,
+    texto: (f) => f.agente ?? "—",
+    filtro: "opciones",
+  },
+  {
+    id: "motivo",
+    header: "Motivo",
+    valor: (f) => f.motivo,
+    texto: (f) => (f.motivo ? etiquetaTopico(f.motivo) : "—"),
+    filtro: "opciones",
+  },
   {
     id: "contacto",
     header: "Contacto",

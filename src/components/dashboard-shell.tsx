@@ -150,23 +150,35 @@ export function DashboardShell() {
             </BentoCard>
 
             <BentoCard
-              span={6}
-              title="Tiempo de primera respuesta (mediana)"
+              span={4}
+              title="Primera respuesta · IA (mediana)"
+              nota="Desde que inicia la conversación hasta que responde la IA (Camila o Sami)."
               loading={isInitialLoading}
               updating={isUpdating}
-              empty={data != null && data.primeraRespuesta.muestras === 0}
+              empty={data != null && data.primeraRespuesta.ia.muestras === 0}
             >
-              {data ? <TiempoCard data={data.primeraRespuesta} color={ACCENT_PRIMARY} /> : null}
+              {data ? <TiempoCard data={data.primeraRespuesta.ia} color={ACCENT_PRIMARY} /> : null}
             </BentoCard>
 
             <BentoCard
-              span={6}
+              span={4}
+              title="Primera respuesta · Humana (mediana)"
+              nota="Desde el escalamiento hasta que responde una persona (Melissa)."
+              loading={isInitialLoading}
+              updating={isUpdating}
+              empty={data != null && data.primeraRespuesta.humana.muestras === 0}
+            >
+              {data ? <TiempoCard data={data.primeraRespuesta.humana} color={ACCENT_PRIMARY} /> : null}
+            </BentoCard>
+
+            <BentoCard
+              span={4}
               title="Tiempo de resolución (mediana)"
               loading={isInitialLoading}
               updating={isUpdating}
               empty={data != null && data.tiempoResolucion.muestras === 0}
             >
-              {data ? <TiempoCard data={data.tiempoResolucion} color={ACCENT_SECONDARY} /> : null}
+              {data ? <TiempoCard data={data.tiempoResolucion} color={ACCENT_SECONDARY} minMuestras={10} /> : null}
             </BentoCard>
 
             <BentoCard

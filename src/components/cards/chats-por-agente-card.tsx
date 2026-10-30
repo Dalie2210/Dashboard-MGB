@@ -3,7 +3,7 @@
 import { PieChart, Pie, Cell } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { CATEGORICAL_THEME, CATEGORICAL_MAX_SLOTS, CATEGORICAL_OTROS_COLOR } from "@/lib/chart-colors";
-import { formatPorcentaje } from "@/lib/format";
+import { formatNumero, formatPorcentaje } from "@/lib/format";
 import type { ChatsPorAgenteMetric } from "@/types/metrics";
 
 export function ChatsPorAgenteCard({ data }: { data: ChatsPorAgenteMetric }) {
@@ -55,6 +55,8 @@ export function ChatsPorAgenteCard({ data }: { data: ChatsPorAgenteMetric }) {
               <span className="truncate text-foreground">{s.nombre}</span>
             </span>
             <span className="shrink-0 tabular-nums text-muted-foreground">
+              <span className="font-medium text-foreground">{formatNumero(s.chats)}</span>
+              {" · "}
               {formatPorcentaje(s.porcentaje)}
             </span>
           </li>

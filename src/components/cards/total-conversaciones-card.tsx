@@ -16,6 +16,11 @@ export function TotalConversacionesCard({ data }: { data: ConversacionesMetric }
           {formatNumero(data.cerradas)} cerradas
         </Badge>
       </div>
+      {data.abiertasMasDe3Dias != null ? (
+        <p className="text-sm font-medium tabular-nums text-red-600">
+          {formatNumero(data.abiertasMasDe3Dias)} abiertas con más de 3 días
+        </p>
+      ) : null}
     </div>
   );
 }
