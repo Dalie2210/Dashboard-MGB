@@ -4,11 +4,13 @@ import { useState } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { BentoGrid, BentoCard } from "@/components/bento-grid";
 import { TotalConversacionesCard } from "@/components/cards/total-conversaciones-card";
-import { TiempoCard } from "@/components/cards/tiempo-card";
+import { EmbudoAtencionCard } from "@/components/cards/embudo-atencion-card";
+import { CasosSinCerrarCard } from "@/components/cards/casos-sin-cerrar-card";
+import { TiempoCard }from "@/components/cards/tiempo-card";
 import { KpiCard } from "@/components/cards/kpi-card";
 import { Variacion } from "@/components/cards/variacion";
 import { VentasCamilaCard } from "@/components/cards/ventas-camila-card";
-import { CargaDiaHoraCard } from "@/components/cards/carga-dia-hora-card";
+import { CargaDiaHoraCard, type HorarioLaboral } from "@/components/cards/carga-dia-hora-card";
 import { ResueltosAbiertosCard } from "@/components/cards/resueltos-abiertos-card";
 import { MotivosEscalamientoCard } from "@/components/cards/motivos-escalamiento-card";
 import { ObjecionesCard } from "@/components/cards/objeciones-card";
@@ -22,6 +24,8 @@ import { formatNumero, formatPorcentaje, formatUsd } from "@/lib/format";
 import { AGENTES, CAMILA_ID, MELISSA_ID, SAMI_ID, nombreAgente } from "@/lib/agentes";
 import type { DateRange } from "@/lib/date-ranges";
 import type { AgenteMetricsResponse, DetalleTipo } from "@/types/metrics-agentes";
+
+const HORARIO_MELISSA: HorarioLaboral = { dias: [1, 2, 3, 4, 5], horaInicio: 8, horaFin: 18 };
 
 async function fetchAgenteMetrics(agenteId: string, range: DateRange): Promise<AgenteMetricsResponse> {
   const params = new URLSearchParams({ from: range.from, to: range.to });
@@ -82,13 +86,27 @@ export function AgentePanel({
         empty={atendidasVacio}
         onClick={abrirDetalle("atendidas", "Conversaciones atendidas")}
       >
-        {data ? <TotalConversacionesCard data={data.atendidas} /> : null}
+        {data ? (
+          agenteId === MELISSA_ID && data.volumenRecibido ? (
+            <EmbudoAtencionCard
+              recibidos={data.volumenRecibido.contactos}
+              atendidos={data.atendidas.total}
+              cerrados={data.atendidas.cerradas}
+            />
+          ) : (
+            <TotalConversacionesCard data={data.atendidas} />
+          )
+        ) : null}
       </BentoCard>
 
       <BentoCard
         span={4}
-        title="Tiempo de primera respuesta (mediana)"
-        nota="Cuánto tarda el agente en contestar el primer mensaje de cada conversación. Se muestra la mediana (el valor del medio, menos sensible a casos extremos); el promedio aparece debajo."
+        title={agenteId === MELISSA_ID ? "Tiempo de respuesta tras escalamiento" : "Tiempo de primera respuesta (mediana)"}
+        nota={
+          agenteId === MELISSA_ID
+            ? "Cuánto tarda Melissa en responder desde que el caso le fue escalado, sin contar la espera previa con el bot. Se muestra la mediana (el valor del medio, menos sensible a casos extremos); el promedio aparece debajo."
+            : "Cuánto tarda el agente en contestar el primer mensaje de cada conversación. Se muestra la mediana (el valor del medio, menos sensible a casos extremos); el promedio aparece debajo."
+        }
         hint={
           data && data.tiempoRespuesta.sinSesion > 0
             ? `${formatNumero(data.tiempoRespuesta.sinSesion)} registros sin sesión asociada, excluidos`
@@ -97,7 +115,10 @@ export function AgentePanel({
         loading={isInitialLoading}
         updating={isUpdating}
         empty={data != null && data.tiempoRespuesta.muestras === 0}
-        onClick={abrirDetalle("tiempo-respuesta", "Tiempo de primera respuesta · más lentas primero")}
+        onClick={abrirDetalle(
+          "tiempo-respuesta",
+          agenteId === MELISSA_ID ? "Tiempo de respuesta tras escalamiento · más lentas primero" : "Tiempo de primera respuesta · más lentas primero"
+        )}
       >
         {data ? <TiempoCard data={data.tiempoRespuesta} color={ACCENT_PRIMARY} /> : null}
       </BentoCard>
@@ -372,11 +393,6 @@ export function AgentePanel({
             span={4}
             title="Tiempo de resolución tras recibir el caso"
             nota="Tiempo entre que el contacto le llega a Melissa y se cierra su conversación. Solo cuenta los casos que ya se cerraron."
-            hint={
-              data && data.tiempoResolucion && data.tiempoResolucion.sinCerrar > 0
-                ? `${formatNumero(data.tiempoResolucion.sinCerrar)} casos aún sin cerrar`
-                : undefined
-            }
             loading={isInitialLoading}
             updating={isUpdating}
             empty={data != null && data.tiempoResolucion != null && data.tiempoResolucion.muestras === 0}
@@ -387,17 +403,14 @@ export function AgentePanel({
 
           <BentoCard
             span={4}
-            title="Casos sin cerrar"
-            nota="Contactos que le llegaron a Melissa en el período y cuya conversación no se ha cerrado después de recibirlos."
+            title="Casos pendientes por antigüedad"
+            nota="Contactos que le llegaron a Melissa en el período y cuya conversación no se ha cerrado después de recibirlos, agrupados por cuánto tiempo llevan esperando. Haz clic para ver el detalle."
             loading={isInitialLoading}
             updating={isUpdating}
             onClick={data?.tiempoResolucion ? () => setCasosSinCerrarAbierto(true) : undefined}
           >
             {data?.tiempoResolucion ? (
-              <KpiCard
-                valor={formatNumero(data.tiempoResolucion.sinCerrar)}
-                subtitulo="recibidos sin cierre posterior · clic para ver el detalle"
-              />
+              <CasosSinCerrarCard range={range} sinCerrar={data.tiempoResolucion.sinCerrar} />
             ) : null}
           </BentoCard>
           <CasosSinCerrarDialog range={range} open={casosSinCerrarAbierto} onOpenChange={setCasosSinCerrarAbierto} />
@@ -414,8 +427,8 @@ export function AgentePanel({
             {data ? <ResueltosAbiertosCard data={data.atendidas} /> : null}
           </BentoCard>
 
-          <BentoCard span={6} title="Carga por día / hora" nota="Cuántas conversaciones empezaron en cada día de la semana y en cada hora del día (hora de Colombia). Sirve para ver cuándo hay más demanda." loading={isInitialLoading} updating={isUpdating} empty={atendidasVacio}>
-            {data?.cargaDiaHora ? <CargaDiaHoraCard data={data.cargaDiaHora} /> : null}
+          <BentoCard span={6} title="Carga por día / hora" nota="Cuántas conversaciones empezaron en cada día de la semana y en cada hora del día (hora de Colombia). Sirve para ver cuándo hay más demanda. Las barras atenuadas están fuera del horario laboral de Melissa (lun–vie, 8:00–18:00)." loading={isInitialLoading} updating={isUpdating} empty={atendidasVacio}>
+            {data?.cargaDiaHora ? <CargaDiaHoraCard data={data.cargaDiaHora} horario={HORARIO_MELISSA} /> : null}
           </BentoCard>
 
           <BentoCard

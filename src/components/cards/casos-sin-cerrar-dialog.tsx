@@ -9,7 +9,7 @@ import { linkConversacionGhl } from "@/lib/ghl-links";
 import type { DateRange } from "@/lib/date-ranges";
 import type { CasoSinCerrarItem } from "@/types/metrics-agentes";
 
-const MS_POR_DIA = 24 * 60 * 60 * 1000;
+export const MS_POR_DIA = 24 * 60 * 60 * 1000;
 
 function formatFechaHora(iso: string): string {
   return new Date(iso).toLocaleString("es-CO", {
@@ -22,7 +22,7 @@ function formatFechaHora(iso: string): string {
   });
 }
 
-function diasAbierto(iso: string): number {
+export function diasAbierto(iso: string): number {
   return Math.floor((Date.now() - new Date(iso).getTime()) / MS_POR_DIA);
 }
 
@@ -48,7 +48,7 @@ const COLUMNAS: Columna<CasoSinCerrarItem>[] = [
   },
 ];
 
-async function fetchCasosSinCerrar(range: DateRange): Promise<CasoSinCerrarItem[]> {
+export async function fetchCasosSinCerrar(range: DateRange): Promise<CasoSinCerrarItem[]> {
   const params = new URLSearchParams({ from: range.from, to: range.to });
   const res = await fetch(`/api/metrics/casos-sin-cerrar-detalle?${params.toString()}`);
   if (!res.ok) throw new Error("No se pudo cargar el detalle de casos sin cerrar.");

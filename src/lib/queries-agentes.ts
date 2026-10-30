@@ -70,20 +70,33 @@ export async function getTiempoRespuestaAgente(
   agenteId: string
 ): Promise<TiempoRespuestaMetric> {
   const norm = sqlAgenteNormalizado("c.agente_asignado", "$4");
+  // Melissa recibe casos escalados: el tiempo se mide desde el escalamiento (no desde el primer mensaje al bot)
+  // y solo cuentan las sesiones con un escalamiento previo a la respuesta.
+  const esMelissa = agenteId === MELISSA_ID;
+  const valor = esMelissa ? "extract(epoch from (pr.created_at - e.created_at))" : "pr.tiempo_respuesta_segundos";
+  const unirEscalamiento = esMelissa
+    ? `join lateral (
+         select created_at from ghl_escalamientos e
+         where e.sesion_id = pr.sesion_id and e.created_at <= pr.created_at
+         order by e.created_at desc limit 1
+       ) e on true`
+    : "";
   const [totales, serie, sinSesion] = await Promise.all([
     pool.query<{ promedio: string | null; mediana: string | null; muestras: number }>(
-      `select avg(pr.tiempo_respuesta_segundos)::float promedio,
-              percentile_cont(0.5) within group (order by pr.tiempo_respuesta_segundos)::float mediana,
+      `select avg(${valor})::float promedio,
+              percentile_cont(0.5) within group (order by ${valor})::float mediana,
               count(*)::int muestras
        from ghl_primera_respuesta pr
        join ghl_conversaciones c on c.id = pr.sesion_id
+       ${unirEscalamiento}
        where pr.fecha between $1 and $2 and ${norm} = $3`,
       [from, to, agenteId, AGENTE_POR_DEFECTO]
     ),
     pool.query<{ fecha: string; valor: string | null }>(
-      `select pr.fecha::text fecha, avg(pr.tiempo_respuesta_segundos)::float valor
+      `select pr.fecha::text fecha, avg(${valor})::float valor
        from ghl_primera_respuesta pr
        join ghl_conversaciones c on c.id = pr.sesion_id
+       ${unirEscalamiento}
        where pr.fecha between $1 and $2 and ${norm} = $3
        group by pr.fecha order by pr.fecha`,
       [from, to, agenteId, AGENTE_POR_DEFECTO]
@@ -568,11 +581,25 @@ export async function getDetalleAgente(
     }
     case "tiempo-respuesta": {
       const norm = sqlAgenteNormalizado("c.agente_asignado", "$4");
-      sql = `select pr.fecha::text fecha, pr.contact_id, pr.conversation_id, pr.tiempo_respuesta_segundos celda
-             from ghl_primera_respuesta pr
-             join ghl_conversaciones c on c.id = pr.sesion_id
-             where pr.fecha between $1 and $2 and ${norm} = $3
-             order by pr.tiempo_respuesta_segundos desc`;
+      if (agenteId === MELISSA_ID) {
+        sql = `select pr.fecha::text fecha, pr.contact_id, pr.conversation_id,
+                      extract(epoch from (pr.created_at - e.created_at))::float celda
+               from ghl_primera_respuesta pr
+               join ghl_conversaciones c on c.id = pr.sesion_id
+               join lateral (
+                 select created_at from ghl_escalamientos e
+                 where e.sesion_id = pr.sesion_id and e.created_at <= pr.created_at
+                 order by e.created_at desc limit 1
+               ) e on true
+               where pr.fecha between $1 and $2 and ${norm} = $3
+               order by celda desc`;
+      } else {
+        sql = `select pr.fecha::text fecha, pr.contact_id, pr.conversation_id, pr.tiempo_respuesta_segundos celda
+               from ghl_primera_respuesta pr
+               join ghl_conversaciones c on c.id = pr.sesion_id
+               where pr.fecha between $1 and $2 and ${norm} = $3
+               order by pr.tiempo_respuesta_segundos desc`;
+      }
       break;
     }
     case "tiempo-resolucion": {
