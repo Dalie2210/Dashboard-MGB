@@ -2,6 +2,7 @@ import { pool } from "@/lib/db";
 import { AGENTE_POR_DEFECTO, MELISSA_ID } from "@/lib/agentes";
 import { sqlAgenteNormalizado } from "@/lib/sql-agentes";
 import { formatDuracion } from "@/lib/format";
+import { rangoAnterior } from "@/lib/date-ranges";
 import type { ConversacionesMetric, CsatMetric, SerieDiaria, TiempoMetric } from "@/types/metrics";
 import type {
   CargaItem,
@@ -21,6 +22,7 @@ import type {
   TiempoTrasRecibirMetric,
   TopicoItem,
   VentasMetric,
+  VentasTotales,
   VolumenRecibidoMetric,
 } from "@/types/metrics-agentes";
 
@@ -105,22 +107,37 @@ export async function getTiempoRespuestaAgente(
   };
 }
 
-export async function getVentasCamila({ from, to }: Rango): Promise<VentasMetric> {
-  const [totales, serie] = await Promise.all([
-    pool.query<{
-      ingresos: string;
-      transacciones: number;
-      ticket_promedio: string | null;
-      compradores: number;
-    }>(
-      `select coalesce(sum(value), 0)::float ingresos,
-              count(*)::int transacciones,
-              (sum(value) / nullif(count(value), 0))::float ticket_promedio,
-              count(distinct lower(trim(buyer_email)))
-                filter (where nullif(trim(buyer_email), '') is not null)::int compradores
-       from ventas_camila where created_at::date between $1 and $2`,
-      [from, to]
-    ),
+async function getTotalesVentas({ from, to }: Rango): Promise<VentasTotales> {
+  const { rows } = await pool.query<{
+    ingresos: string;
+    transacciones: number;
+    ticket_promedio: string | null;
+    compradores: number;
+  }>(
+    `select coalesce(sum(value), 0)::float ingresos,
+            count(*)::int transacciones,
+            (sum(value) / nullif(count(value), 0))::float ticket_promedio,
+            count(distinct lower(trim(buyer_email)))
+              filter (where nullif(trim(buyer_email), '') is not null)::int compradores
+     from ventas_camila where created_at::date between $1 and $2`,
+    [from, to]
+  );
+
+  const t = rows[0] ?? { ingresos: "0", transacciones: 0, ticket_promedio: null, compradores: 0 };
+
+  return {
+    ingresos: Number(t.ingresos),
+    transacciones: t.transacciones,
+    ticketPromedio: t.ticket_promedio != null ? Number(t.ticket_promedio) : null,
+    compradores: t.compradores,
+  };
+}
+
+export async function getVentasCamila(rango: Rango): Promise<VentasMetric> {
+  const { from, to } = rango;
+  const [actual, anterior, serie] = await Promise.all([
+    getTotalesVentas(rango),
+    getTotalesVentas(rangoAnterior(rango)),
     pool.query<{ fecha: string; valor: string | null }>(
       `select created_at::date::text fecha, coalesce(sum(value), 0)::float valor
        from ventas_camila where created_at::date between $1 and $2
@@ -129,14 +146,10 @@ export async function getVentasCamila({ from, to }: Rango): Promise<VentasMetric
     ),
   ]);
 
-  const t = totales.rows[0] ?? { ingresos: "0", transacciones: 0, ticket_promedio: null, compradores: 0 };
-
   return {
-    ingresos: Number(t.ingresos),
-    transacciones: t.transacciones,
-    ticketPromedio: t.ticket_promedio != null ? Number(t.ticket_promedio) : null,
-    compradores: t.compradores,
+    ...actual,
     serieDiaria: serieDesdeFilas(serie.rows.map((r) => ({ fecha: r.fecha, valor: r.valor ?? 0 }))),
+    anterior,
   };
 }
 

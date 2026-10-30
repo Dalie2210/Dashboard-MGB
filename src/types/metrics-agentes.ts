@@ -1,11 +1,16 @@
 import type { ConversacionesMetric, CsatMetric, TiempoMetric } from "@/types/metrics";
 
-export type VentasMetric = {
+export type VentasTotales = {
   ingresos: number;
   transacciones: number;
   ticketPromedio: number | null;
   compradores: number;
+};
+
+export type VentasMetric = VentasTotales & {
   serieDiaria: { fecha: string; valor: number }[];
+  /** Totales del período inmediatamente anterior, de igual duración. */
+  anterior: VentasTotales;
 };
 
 export type CargaItem = { clave: number; conteo: number };

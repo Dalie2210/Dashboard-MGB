@@ -6,6 +6,7 @@ import { BentoGrid, BentoCard } from "@/components/bento-grid";
 import { TotalConversacionesCard } from "@/components/cards/total-conversaciones-card";
 import { TiempoCard } from "@/components/cards/tiempo-card";
 import { KpiCard } from "@/components/cards/kpi-card";
+import { Variacion } from "@/components/cards/variacion";
 import { VentasCamilaCard } from "@/components/cards/ventas-camila-card";
 import { CargaDiaHoraCard } from "@/components/cards/carga-dia-hora-card";
 import { ResueltosAbiertosCard } from "@/components/cards/resueltos-abiertos-card";
@@ -136,15 +137,24 @@ export function AgentePanel({
           </BentoCard>
 
           <BentoCard span={4} title="Transacciones" nota="Número de ventas registradas en el período. Una persona puede tener más de una." loading={isInitialLoading} updating={isUpdating} empty={atendidasVacio}>
-            {data?.ventas ? <KpiCard valor={formatNumero(data.ventas.transacciones)} /> : null}
+            {data?.ventas ? <KpiCard
+                valor={formatNumero(data.ventas.transacciones)}
+                comparacion={<Variacion actual={data.ventas.transacciones} anterior={(data.ventas.anterior?.transacciones ?? null)} formatear={formatNumero} />}
+              /> : null}
           </BentoCard>
 
           <BentoCard span={4} title="Ticket promedio" nota="Valor promedio por venta: ingresos divididos entre el número de transacciones." loading={isInitialLoading} updating={isUpdating} empty={atendidasVacio}>
-            {data?.ventas ? <KpiCard valor={formatUsd(data.ventas.ticketPromedio)} /> : null}
+            {data?.ventas ? <KpiCard
+                valor={formatUsd(data.ventas.ticketPromedio)}
+                comparacion={<Variacion actual={data.ventas.ticketPromedio} anterior={(data.ventas.anterior?.ticketPromedio ?? null)} formatear={formatUsd} />}
+              /> : null}
           </BentoCard>
 
           <BentoCard span={4} title="Compradores únicos" nota="Personas distintas (por correo) que compraron en el período, sin repetir a quien compró varias veces." loading={isInitialLoading} updating={isUpdating} empty={atendidasVacio}>
-            {data?.ventas ? <KpiCard valor={formatNumero(data.ventas.compradores)} /> : null}
+            {data?.ventas ? <KpiCard
+                valor={formatNumero(data.ventas.compradores)}
+                comparacion={<Variacion actual={data.ventas.compradores} anterior={(data.ventas.anterior?.compradores ?? null)} formatear={formatNumero} />}
+              /> : null}
           </BentoCard>
 
           <BentoCard
@@ -157,6 +167,25 @@ export function AgentePanel({
             expandible
           >
             {data?.objeciones ? <ObjecionesCard data={data.objeciones} range={range} /> : null}
+          </BentoCard>
+
+          <BentoCard
+            span={12}
+            title="Motivos de escalamiento a Melissa"
+            nota="Por qué este agente pasó casos a Melissa, agrupado por motivo. Cada escalamiento cuenta una vez, así que el total puede superar los contactos escalados si a un contacto se le escaló más de una vez."
+            hint={
+              data?.motivosEscalamiento && data.motivosEscalamiento.length > 8
+                ? "Se muestran los 8 motivos más frecuentes; el resto se agrupa en \"Otros\""
+                : undefined
+            }
+            loading={isInitialLoading}
+            updating={isUpdating}
+            empty={data != null && data.motivosEscalamiento != null && data.motivosEscalamiento.length === 0}
+            expandible
+          >
+            {data?.motivosEscalamiento ? (
+              <MotivosEscalamientoCard data={data.motivosEscalamiento} range={range} agenteOrigen={CAMILA_ID} />
+            ) : null}
           </BentoCard>
         </>
       ) : null}

@@ -6,6 +6,7 @@ import { es } from "date-fns/locale";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { ACCENT_SECONDARY } from "@/lib/chart-colors";
 import { formatUsd } from "@/lib/format";
+import { Variacion } from "@/components/cards/variacion";
 import type { VentasMetric } from "@/types/metrics-agentes";
 
 const chartConfig = {
@@ -23,6 +24,7 @@ export function VentasCamilaCard({ data }: { data: VentasMetric }) {
       <p className="text-3xl font-semibold tabular-nums text-foreground">
         {formatUsd(data.ingresos)}
       </p>
+      <Variacion actual={data.ingresos} anterior={data.anterior?.ingresos ?? null} formatear={formatUsd} />
       <ChartContainer config={chartConfig} className="aspect-auto h-40 w-full">
         <AreaChart data={puntos} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
           <defs>

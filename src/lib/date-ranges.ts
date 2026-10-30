@@ -4,6 +4,8 @@ import {
   endOfMonth,
   startOfYear,
   subMonths,
+  parseISO,
+  differenceInCalendarDays,
   format,
 } from "date-fns";
 
@@ -125,6 +127,13 @@ export function presetPorRango(range: DateRange): PresetId | null {
     if (r.from === range.from && r.to === range.to) return preset.id;
   }
   return null;
+}
+
+/** Período inmediatamente anterior, con la misma cantidad de días que `range`. */
+export function rangoAnterior({ from, to }: DateRange): DateRange {
+  const desde = parseISO(from);
+  const dias = differenceInCalendarDays(parseISO(to), desde) + 1;
+  return rango(subDays(desde, dias), subDays(desde, 1));
 }
 
 export function esRangoValido(

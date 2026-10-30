@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ObjecionDetalleDialog } from "@/components/cards/objecion-detalle-dialog";
-import { formatNumero } from "@/lib/format";
+import { formatNumero, formatPorcentaje } from "@/lib/format";
 import type { DateRange } from "@/lib/date-ranges";
 import type { ObjecionItem } from "@/types/metrics-agentes";
 
@@ -27,6 +27,7 @@ export function ObjecionesCard({ data, range }: { data: ObjecionItem[]; range: D
   const [seleccion, setSeleccion] = useState<{ titulo: string; categoria: string } | null>(null);
 
   const ordenado = [...data].sort((a, b) => b.conteo - a.conteo);
+  const total = ordenado.reduce((suma, item) => suma + item.conteo, 0);
 
   return (
     <>
@@ -36,6 +37,7 @@ export function ObjecionesCard({ data, range }: { data: ObjecionItem[]; range: D
             <tr className="border-b border-border bg-muted/50 text-left text-xs text-muted-foreground">
               <th className="px-3 py-2 font-medium">Objeción</th>
               <th className="px-3 py-2 font-medium">Cantidad</th>
+              <th className="px-3 py-2 font-medium">% del total</th>
               <th className="px-3 py-2 font-medium">Detalle</th>
             </tr>
           </thead>
@@ -44,6 +46,9 @@ export function ObjecionesCard({ data, range }: { data: ObjecionItem[]; range: D
               <tr key={item.categoria} className="border-b border-border last:border-0">
                 <td className="px-3 py-2 text-foreground">{etiquetaCategoria(item.categoria)}</td>
                 <td className="px-3 py-2 tabular-nums text-foreground">{formatNumero(item.conteo)}</td>
+                <td className="px-3 py-2 tabular-nums text-foreground">
+                  {formatPorcentaje(total > 0 ? (item.conteo / total) * 100 : null, 1)}
+                </td>
                 <td className="px-3 py-2">
                   <button
                     type="button"

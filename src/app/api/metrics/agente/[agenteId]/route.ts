@@ -61,7 +61,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ agen
     let resolucionesPorTopico: AgenteMetricsResponse["resolucionesPorTopico"] = null;
 
     if (agenteId === CAMILA_ID) {
-      [ventas, objeciones] = await Promise.all([getVentasCamila(rango), getObjeciones(rango)]);
+      [ventas, objeciones, motivosEscalamiento] = await Promise.all([
+        getVentasCamila(rango),
+        getObjeciones(rango),
+        getMotivosEscalamiento(rango, agenteId),
+      ]);
       // Compradores únicos, no transacciones: evita que una persona con varias
       // compras infle el porcentaje por encima de 100%.
       porcentajeCierre = atendidas.total > 0 ? (ventas.compradores / atendidas.total) * 100 : null;
